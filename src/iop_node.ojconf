@@ -1,0 +1,82 @@
+{
+	"CMPT_ExampleClient" : 
+	{
+		"AccessControl" : 
+		{
+			"Settings" : 
+			{
+				"ServerAuthority" : 0,
+				"Timeout_sec" : 0
+			}
+		},
+		"DiscoveryServer" : 
+		{
+			"Enabled" : true
+		},
+		"LivenessServer" : 
+		{
+			"Enabled" : true,
+			"Settings" : 
+			{
+				"BroadcastStopped" : true,
+				"GenerateHeartbeats" : false,
+				"HeartbeatInterval_sec" : 0,
+				"Timeout_sec" : 0
+			}
+		},
+		"SecondaryPort" : 0,
+		"TimeServer" : 
+		{
+			"Enabled" : false
+		}
+	},
+	"FileInfo" : 
+	{
+		"Type" : "Standard"
+	},
+	"_GLOBAL_" : 
+	{
+		"Addressing" : 
+		{
+			"Method" : "OpenJAUS"
+		},
+		"Discovery" : 
+		{
+			"NodeName" : "OpenJAUS_Node",
+			"NodeType" : "Node",
+			"SubsystemName" : "OpenJAUS_Subsystem",
+			"SubsystemType" : "Vehicle"
+		},
+		"DiscoveryClientSettings" : 
+		{
+			"DiscoveryLevel" : "System",
+			"QueryIdentificationBroadcastDuration" : "OnceAtStartup",
+			"QueryIdentificationBroadcastInterval_sec" : 0,
+			"RegisterServicesBroadcastInterval_sec" : 0,
+			"VerifyRegisterServicesInterval_sec" : 0
+		},
+		"EventSettings" : 
+		{
+			"Timeout_min" : 0
+		},
+		"JAUSBroadcast" : 
+		{
+			"Method" : "Multicast",
+			"MulticastAddress" : "239.255.0.1"
+		},
+		"Network" : 
+		{
+			"AckNakRetryCount" : 0,
+			"AckNakTimeout_sec" : 0,
+			"EnableTCP" : false,
+			"Interface" : "Auto",
+			"LargeMessageBurstLength" : 0,
+			"TTL" : 32
+		},
+		"OpenJAUS" : 
+		{
+			"SuppressExceptionsFile" : false
+		}
+	},
+	"version" : 1
+}
