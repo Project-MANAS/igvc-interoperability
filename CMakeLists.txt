@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(iop)
+project(interoperability)
 
 set(CMAKE_CXX_FLAGS "-std=c++17 -fPIC")
 
@@ -23,8 +23,8 @@ catkin_package(CATKIN_DEPENDS
         waypoint_server
 )
 
-set(JAUS_INCLUDE_PATH "org.openjaus.sdk.cpp_v5.0.0_trial_mobility/org.openjaus.sdk.cpp_trial_mobility/include")
-set(JAUS_LIB_PATH "org.openjaus.sdk.cpp_v5.0.0_trial_mobility/org.openjaus.sdk.cpp_trial_mobility/lib")
+set(JAUS_INCLUDE_PATH "openjaus/include")
+set(JAUS_LIB_PATH "openjaus/lib")
 
 include_directories(
         include
