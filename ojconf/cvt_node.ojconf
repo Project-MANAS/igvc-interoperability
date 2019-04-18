@@ -1,5 +1,5 @@
 {
-	"CMPT_ExampleClient" : 
+	"CMPT_CVT" :
 	{
 		"AccessControl" : 
 		{
@@ -8,6 +8,10 @@
 				"ServerAuthority" : 0,
 				"Timeout_sec" : 0
 			}
+		},
+		"Addressing" : 
+		{
+			"ComponentID" : 1
 		},
 		"DiscoveryServer" : 
 		{
@@ -38,20 +42,22 @@
 	{
 		"Addressing" : 
 		{
-			"Method" : "OpenJAUS"
+			"Method" : "Static",
+			"NodeID" : 1,
+			"SubsystemID" : 1
 		},
 		"Discovery" : 
 		{
-			"NodeName" : "OpenJAUS_Node",
+			"NodeName" : "ConformanceVerificationTool",
 			"NodeType" : "Node",
-			"SubsystemName" : "OpenJAUS_Subsystem",
+			"SubsystemName" : "JTC",
 			"SubsystemType" : "Vehicle"
 		},
 		"DiscoveryClientSettings" : 
 		{
 			"DiscoveryLevel" : "System",
-			"QueryIdentificationBroadcastDuration" : "OnceAtStartup",
-			"QueryIdentificationBroadcastInterval_sec" : 0,
+			"QueryIdentificationBroadcastDuration" : "UntilDiscoveryFound",
+			"QueryIdentificationBroadcastInterval_sec" : 5,
 			"RegisterServicesBroadcastInterval_sec" : 0,
 			"VerifyRegisterServicesInterval_sec" : 0
 		},

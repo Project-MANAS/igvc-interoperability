@@ -62,6 +62,9 @@ class NavigationAndReportingComponent :
   openjaus::mobility_v1_0::ReportElementList getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) override;
   openjaus::mobility_v1_0::ReportElementCount getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) override;
 
+  // Primitive Driver
+  bool setWrenchEffort(openjaus::mobility_v1_0::SetWrenchEffort *setWrenchEffort) override;
+
   // Management Services
   void onPushToEmergency() override;
   void onPopFromEmergency() override;
@@ -73,6 +76,8 @@ class NavigationAndReportingComponent :
  private:
   ros::NodeHandle private_node_;
   ros::NodeHandle node_;
+
+  ros::Publisher cmd_vel_pub_;
 
   ros::ServiceClient set_pose_client_;
   ros::ServiceClient set_max_vel_client_;
@@ -88,6 +93,9 @@ class NavigationAndReportingComponent :
 
   std::string odom_topic_;
 
+  double max_vel_;
+  double max_linear_x_;
+  double max_angular_z_;
   bool is_emergency_;
   bool is_ready_;
 

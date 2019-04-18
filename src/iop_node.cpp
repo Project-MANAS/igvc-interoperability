@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
 
   ros::init(argc, argv, "iop_node");
 
-  NavigationAndReportingComponent component("NavigationAndReportingComponent");
+  NavigationAndReportingComponent component("NavigationAndReporting");
 
   ros::spin();
 

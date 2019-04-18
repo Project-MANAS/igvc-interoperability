@@ -44,7 +44,7 @@ add_library(${PROJECT_NAME}
         src/NavigationAndReportingComponent.cpp
 )
 
-add_executable(iop_node src/node.cpp)
+add_executable(iop_node src/iop_node.cpp)
 target_link_libraries(iop_node
         ${catkin_LIBRARIES}
         ${PROJECT_NAME}

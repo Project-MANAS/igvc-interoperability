@@ -1,5 +1,5 @@
 {
-	"CMPT_ExampleClient" : 
+	"CMPT_NavigationAndReporting" :
 	{
 		"AccessControl" : 
 		{
@@ -8,6 +8,10 @@
 				"ServerAuthority" : 0,
 				"Timeout_sec" : 0
 			}
+		},
+		"Addressing" : 
+		{
+			"ComponentID" : 1
 		},
 		"DiscoveryServer" : 
 		{
@@ -38,13 +42,15 @@
 	{
 		"Addressing" : 
 		{
-			"Method" : "OpenJAUS"
+			"Method" : "Static",
+			"NodeID" : 1,
+			"SubsystemID" : 155
 		},
 		"Discovery" : 
 		{
-			"NodeName" : "OpenJAUS_Node",
+			"NodeName" : "IOP",
 			"NodeType" : "Node",
-			"SubsystemName" : "OpenJAUS_Subsystem",
+			"SubsystemName" : "Solo",
 			"SubsystemType" : "Vehicle"
 		},
 		"DiscoveryClientSettings" : 

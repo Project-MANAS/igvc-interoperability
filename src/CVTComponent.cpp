@@ -10,6 +10,8 @@
 #include "openjaus/mobility_v1_0/Services/VelocityStateSensor.h"
 #include "openjaus/mobility_v1_0/Services/LocalPoseSensor.h"
 #include "openjaus/mobility_v1_0/Services/LocalWaypointDriver.h"
+#include "openjaus/mobility_v1_0/Services/LocalWaypointListDriver.h"
+#include "openjaus/mobility_v1_0/Services/PrimitiveDriver.h"
 
 #include <ros/ros.h>
 
@@ -38,7 +40,6 @@ int main(int argc, char **argv) {
 
   std::vector<transport::Address> cmp_list;
   uint32_t periodicSubscriptionId = 0;
-  uint32_t onChangeSubscriptionId = 0;
 
   try {
 
@@ -99,7 +100,7 @@ int main(int argc, char **argv) {
           break;
         }
 
-        case 'o': // Request PD Control
+        case 'i': // Request PD Control
         {
           if (!cmp_list.empty()) {
             component.requestControl(cmp_list.at(0), processControlResponse);
@@ -108,7 +109,7 @@ int main(int argc, char **argv) {
           break;
         }
 
-        case 'p': // Release PD Control
+        case 'o': // Release PD Control
         {
           if (!cmp_list.empty()) {
             try {
@@ -122,7 +123,7 @@ int main(int argc, char **argv) {
           break;
         }
 
-        case 'k': // Query Access Control Timeout
+        case 'p': // Query Access Control Timeout
         {
           std::cout << "Sending Query Timeout" << std::endl;
 
@@ -204,7 +205,43 @@ int main(int argc, char **argv) {
           break;
         }
 
-        case 'q': // Query Status
+        case 'w': // Set Wrench Effort (Propulsive Linear X: 100%)
+        {
+          std::cout << "Sending Set Wrench Effort (Propulsive Linear X: 100%)" << std::endl;
+          auto *setWrenchEffort = new mobility_v1_0::SetWrenchEffort();
+          setWrenchEffort->setPropulsiveLinearEffortX_percent(100.0);
+          sendMessage(component, cmp_list, setWrenchEffort);
+          break;
+        }
+
+        case 's': // Set Wrench Effort (Propulsive Linear X: -100%)
+        {
+          std::cout << "Sending Set Wrench Effort (Propulsive Linear X: -100%)" << std::endl;
+          auto *setWrenchEffort = new mobility_v1_0::SetWrenchEffort();
+          setWrenchEffort->setPropulsiveLinearEffortX_percent(-100.0);
+          sendMessage(component, cmp_list, setWrenchEffort);
+          break;
+        }
+
+        case 'a': // Set Wrench Effort (Propulsive Rotational Z: -100%)
+        {
+          std::cout << "Sending Set Wrench Effort (Propulsive Rotational Z: -100%)" << std::endl;
+          auto *setWrenchEffort = new mobility_v1_0::SetWrenchEffort();
+          setWrenchEffort->setPropulsiveRotationalEffortZ_percent(-100.0);
+          sendMessage(component, cmp_list, setWrenchEffort);
+          break;
+        }
+
+        case 'd': // Set Wrench Effort (Propulsive Rotational Z: 100%)
+        {
+          std::cout << "Sending Set Wrench Effort (Propulsive Rotational Z: 100%)" << std::endl;
+          auto *setWrenchEffort = new mobility_v1_0::SetWrenchEffort();
+          setWrenchEffort->setPropulsiveRotationalEffortZ_percent(100.0);
+          sendMessage(component, cmp_list, setWrenchEffort);
+          break;
+        }
+
+        case 'j': // Query Status
         {
           std::cout << "Sending Query Status" << std::endl;
 
@@ -213,7 +250,7 @@ int main(int argc, char **argv) {
           break;
         }
 
-        case 'a': // Reset
+        case 'k': // Reset
         {
           std::cout << "Sending Reset" << std::endl;
 
@@ -222,7 +259,7 @@ int main(int argc, char **argv) {
           break;
         }
 
-        case 's': // Resume
+        case 'l': // Resume
         {
           std::cout << "Sending Resume" << std::endl;
 
@@ -231,7 +268,7 @@ int main(int argc, char **argv) {
           break;
         }
 
-        case 'd': // Set Emergency
+        case 'v': // Set Emergency
         {
           std::cout << "Sending Set Emergency" << std::endl;
 
@@ -240,7 +277,7 @@ int main(int argc, char **argv) {
           break;
         }
 
-        case 'z': // Clear Emergency
+        case 'b': // Clear Emergency
         {
           std::cout << "Sending Clear Emergency" << std::endl;
 
@@ -249,7 +286,7 @@ int main(int argc, char **argv) {
           break;
         }
 
-        case 'x': // Shutdown
+        case 'n': // Shutdown
         {
           std::cout << "Sending Shutdown" << std::endl;
 
@@ -258,7 +295,7 @@ int main(int argc, char **argv) {
           break;
         }
 
-        case 'c': // Standby
+        case 'm': // Standby
         {
           std::cout << "Sending Standby" << std::endl;
 
@@ -367,17 +404,17 @@ void printMenu() {
   std::cout << "t - Print System Tree\n";
   std::cout << "f - Find Primitive Driver\n";
   std::cout << "Access Control Service\n";
-  std::cout << "o - Request Control\n";
-  std::cout << "p - Release Control\n";
-  std::cout << "k - Query Access Control Timeout" << std::endl;
+  std::cout << "i - Request Control\n";
+  std::cout << "o - Release Control\n";
+  std::cout << "p - Query Access Control Timeout\n";
   std::cout << "Management Service\n";
-  std::cout << "q - Query Status\n";
-  std::cout << "a - Reset\n";
-  std::cout << "s - Resume\n";
-  std::cout << "d - Set Emergency\n";
-  std::cout << "z - Clear Emergency\n";
-  std::cout << "x - Shutdown\n";
-  std::cout << "c - Standby\n";
+  std::cout << "j - Query Status\n";
+  std::cout << "k - Reset\n";
+  std::cout << "l - Resume\n";
+  std::cout << "v - Set Emergency\n";
+  std::cout << "b - Clear Emergency\n";
+  std::cout << "n - Shutdown\n";
+  std::cout << "m - Standby\n";
   std::cout << "Services\n";
   std::cout << "1 - Query Local Pose\n";
   std::cout << "2 - Query Velocity State\n";
@@ -386,6 +423,7 @@ void printMenu() {
   std::cout << "5 - Set Local Pose\n";
   std::cout << "6 - Set Local Waypoint\n";
   std::cout << "7 - Set Travel Speed\n";
+  std::cout << "w a s d - Set Wrench Effort\n";
   std::cout << "Event Services\n";
   std::cout << "! - Create Periodic Report Local Pose Event (1 hz)\n";
   std::cout << "@ - Create Periodic Report Velocity State Event (1 hz)\n";

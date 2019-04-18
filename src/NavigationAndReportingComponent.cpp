@@ -10,17 +10,12 @@
 #include <waypoint_server/QueryTargetWaypoint.h>
 
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Twist.h>
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 NavigationAndReportingComponent::NavigationAndReportingComponent(const std::string &name)
     : Managed(name), private_node_("~"), tf_listener_(tf_buffer_) {
-
-//  int subsystemID, nodeID, componentID;
-//  private_node_.param("subsystemID", subsystemID, 1);
-//  private_node_.param("nodeID", nodeID, 1);
-//  private_node_.param("componentID", componentID, 155);
-//  this->setComponentAddress(new openjaus::transport::Address(subsystemID, nodeID, componentID));
 
   this->implements->push_back(openjaus::mobility_v1_0::services::LocalWaypointDriver::create());
   this->implements->push_back(openjaus::mobility_v1_0::services::LocalWaypointListDriver::create());
@@ -42,13 +37,14 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
   set_local_waypoint_client_ = node_.serviceClient<waypoint_server::SetPoseWaypoint>("set_pose_waypoint");
   get_local_waypoint_client_ = node_.serviceClient<waypoint_server::QueryTargetWaypoint>("get_target_waypoint");
 
+  cmd_vel_pub_ = node_.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+
   is_emergency_ = false;
   is_ready_ = false;
+  max_vel_ = 0.0;
 
-  dwa_local_planner::SetMaxVel srv;
-  srv.request.max_vel.data = 0.0;
-  if (set_max_vel_client_.call(srv))
-    ROS_INFO("Max velocity was set to %lf m/s", srv.request.max_vel.data);
+  private_node_.param("max_linear_x", max_linear_x_, 0.5);
+  private_node_.param("max_angular_z", max_angular_z_, 0.25);
 
   this->addMessageCallback(&NavigationAndReportingComponent::setLwdTravelSpeed, this);
 
@@ -62,15 +58,28 @@ openjaus::mobility_v1_0::ReportVelocityState NavigationAndReportingComponent::ge
 
   openjaus::mobility_v1_0::ReportVelocityState velocityState;
 
-  velocityState.setVelocityX_mps(odom_msg_.twist.twist.linear.x);
-  velocityState.setVelocityY_mps(-odom_msg_.twist.twist.linear.y);
-  velocityState.setVelocityZ_mps(-odom_msg_.twist.twist.linear.z);
-  velocityState.setRollRate_rps(odom_msg_.twist.twist.angular.x);
-  velocityState.setPitchRate_rps(-odom_msg_.twist.twist.angular.y);
-  velocityState.setYawRate_rps(-odom_msg_.twist.twist.angular.z);
+  velocityState.setPresenceVector(queryVelocityState->getQueryPresenceVector());
 
-  uint16_t reqFields = 0x0141;
-  velocityState.setPresenceVector(queryVelocityState->getQueryPresenceVector() & reqFields);
+  if (velocityState.isVelocityXEnabled())
+    velocityState.setVelocityX_mps(odom_msg_.twist.twist.linear.x);
+
+  if (velocityState.isVelocityYEnabled())
+    velocityState.setVelocityY_mps(-odom_msg_.twist.twist.linear.y);
+
+  if (velocityState.isVelocityZEnabled())
+    velocityState.setVelocityZ_mps(-odom_msg_.twist.twist.linear.z);
+
+  if (velocityState.isRollRateEnabled())
+    velocityState.setRollRate_rps(odom_msg_.twist.twist.angular.x);
+
+  if (velocityState.isPitchRateEnabled())
+    velocityState.setPitchRate_rps(-odom_msg_.twist.twist.angular.y);
+
+  if (velocityState.isYawRateEnabled())
+    velocityState.setYawRate_rps(-odom_msg_.twist.twist.angular.z);
+
+  if (velocityState.isTimeStampEnabled())
+    velocityState.setTriggerTimestamp_sec(odom_msg_.header.stamp.toSec());
 
   return velocityState;
 }
@@ -81,38 +90,37 @@ openjaus::mobility_v1_0::ReportLocalPose NavigationAndReportingComponent::getRep
 
   openjaus::mobility_v1_0::ReportLocalPose localPose;
 
-  geometry_msgs::PoseStamped pose;
-  pose.header.frame_id = odom_msg_.header.frame_id;
-  pose.header.stamp = odom_msg_.header.stamp;
-  pose.pose.position.x = odom_msg_.pose.pose.position.x;
-  pose.pose.position.y = odom_msg_.pose.pose.position.y;
-  pose.pose.position.z = odom_msg_.pose.pose.position.z;
-  pose.pose.orientation.x = odom_msg_.pose.pose.orientation.x;
-  pose.pose.orientation.y = odom_msg_.pose.pose.orientation.y;
-  pose.pose.orientation.z = odom_msg_.pose.pose.orientation.z;
-  pose.pose.orientation.w = odom_msg_.pose.pose.orientation.w;
+  localPose.setPresenceVector(queryLocalPose->getQueryPresenceVector());
 
-  tf_buffer_.transform(pose, pose, "base_link");
+  if (localPose.isXEnabled())
+    localPose.setX_m(odom_msg_.pose.pose.position.x);
 
-  localPose.setX_m(pose.pose.position.x);
-  localPose.setY_m(-pose.pose.position.y);
-  localPose.setZ_m(-pose.pose.position.z);
+  if (localPose.isYEnabled())
+    localPose.setY_m(-odom_msg_.pose.pose.position.y);
 
-  tf2::Quaternion q(pose.pose.orientation.x,
-                    -pose.pose.orientation.y,
-                    -pose.pose.orientation.z,
-                    pose.pose.orientation.w);
+  if (localPose.isZEnabled())
+    localPose.setZ_m(-odom_msg_.pose.pose.position.z);
+
+  tf2::Quaternion q(odom_msg_.pose.pose.orientation.x,
+                    -odom_msg_.pose.pose.orientation.y,
+                    -odom_msg_.pose.pose.orientation.z,
+                    odom_msg_.pose.pose.orientation.w);
 
   tf2::Matrix3x3 m(q);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
 
-  localPose.setRoll_rad(roll);
-  localPose.setPitch_rad(pitch);
-  localPose.setYaw_rad(yaw);
+  if (localPose.isRollEnabled())
+    localPose.setRoll_rad(roll);
 
-  uint16_t reqFields = 0x0143;
-  localPose.setPresenceVector(queryLocalPose->getQueryPresenceVector() & reqFields);
+  if (localPose.isPitchEnabled())
+    localPose.setPitch_rad(pitch);
+
+  if (localPose.isYawEnabled())
+    localPose.setYaw_rad(yaw);
+
+  if (localPose.isTimeStampEnabled())
+    localPose.setTriggerTimestamp_sec(odom_msg_.header.stamp.toSec());
 
   return localPose;
 }
@@ -122,7 +130,7 @@ bool NavigationAndReportingComponent::updateLocalPose(openjaus::mobility_v1_0::S
   robot_localization::SetPose srv;
 
   srv.request.pose.header.stamp = ros::Time::now();
-  srv.request.pose.header.frame_id = "base_link";
+  srv.request.pose.header.frame_id = "odom";
   srv.request.pose.pose.pose.position.x = setLocalPose->getX_m();
   srv.request.pose.pose.pose.position.y = -setLocalPose->getY_m();
   srv.request.pose.pose.pose.position.z = 0.0;
@@ -132,9 +140,13 @@ bool NavigationAndReportingComponent::updateLocalPose(openjaus::mobility_v1_0::S
   srv.request.pose.pose.pose.orientation.w = 1.0;
 
   if (set_pose_client_.call(srv))
-    ROS_INFO("Local Pose was reset");
-  else
-    ROS_ERROR("Failed to call service set_pose in robot_localization package");
+    ROS_INFO("Local Pose was reset to (X: %lf, Y: %lf)",
+             srv.request.pose.pose.pose.position.x,
+             srv.request.pose.pose.pose.position.y);
+  else {
+    ROS_ERROR("Failed to call service 'set_pose' in robot_localization package");
+    return false;
+  }
 
   return true;
 }
@@ -143,17 +155,26 @@ bool NavigationAndReportingComponent::setLocalWaypoint(openjaus::mobility_v1_0::
 
   waypoint_server::SetPoseWaypoint srv;
 
-  srv.request.waypoint.header.frame_id = "base_link";
+  srv.request.waypoint.header.frame_id = "odom";
   srv.request.waypoint.header.stamp = ros::Time::now();
   srv.request.waypoint.pose.position.x = setLocalWaypoint->getX_m();
   srv.request.waypoint.pose.position.y = -setLocalWaypoint->getY_m();
+
+  dwa_local_planner::SetMaxVel mv_srv;
+
+  if (is_emergency_ || !is_ready_)
+    mv_srv.request.max_vel.data = 0.0;
+  else
+    mv_srv.request.max_vel.data = max_vel_;
+
+  set_max_vel_client_.call(mv_srv);
 
   if (set_local_waypoint_client_.call(srv))
     ROS_INFO("Local waypoint was set to (X: %lf, Y: %lf)",
              srv.request.waypoint.pose.position.x,
              srv.request.waypoint.pose.position.y);
   else {
-    ROS_ERROR("Failed to call service pose_waypoint in waypoint_server package");
+    ROS_ERROR("Failed to call service 'set_pose_waypoint' in waypoint_server package");
     return false;
   }
 
@@ -164,15 +185,20 @@ bool NavigationAndReportingComponent::setLwdTravelSpeed(openjaus::mobility_v1_0:
 
   dwa_local_planner::SetMaxVel srv;
 
-  if (!is_emergency_ && is_ready_)
-    srv.request.max_vel.data = setTravelSpeed.getSpeed_mps();
+  if (!is_emergency_)
+    max_vel_ = setTravelSpeed.getSpeed_mps();
+  else
+    max_vel_ = 0.0;
+
+  if (is_ready_)
+    srv.request.max_vel.data = max_vel_;
   else
     srv.request.max_vel.data = 0.0;
 
   if (set_max_vel_client_.call(srv))
     ROS_INFO("Max velocity was set to %lf m/s", srv.request.max_vel.data);
   else {
-    ROS_ERROR("Failed to call service set_max_vel in dwa_local_planner package");
+    ROS_ERROR("Failed to call service 'move_base/DWAPlannerROS/set_max_vel' in dwa_local_planner package");
     return false;
   }
 
@@ -199,7 +225,7 @@ openjaus::mobility_v1_0::ReportLocalWaypoint NavigationAndReportingComponent::ge
       pose.pose.orientation.z = srv.response.waypoint.pose.orientation.z;
       pose.pose.orientation.w = srv.response.waypoint.pose.orientation.w;
 
-      tf_buffer_.transform(pose, pose, "base_link");
+      tf_buffer_.transform(pose, pose, "odom");
 
       localWaypoint.setX_m(pose.pose.position.x);
       localWaypoint.setY_m(-pose.pose.position.y);
@@ -222,13 +248,12 @@ openjaus::mobility_v1_0::ReportTravelSpeed NavigationAndReportingComponent::getR
 
   openjaus::mobility_v1_0::ReportTravelSpeed travelSpeed;
 
-  travelSpeed.setSpeed_mps(abs(odom_msg_.twist.twist.linear.x));
+  travelSpeed.setSpeed_mps(max_vel_);
 
-  ROS_INFO("Report travel speed: %lf", abs(odom_msg_.twist.twist.linear.x));
+  ROS_INFO("Report travel speed: %lf m/s", max_vel_);
 
   return travelSpeed;
 }
-
 
 openjaus::mobility_v1_0::ConfirmElementRequest NavigationAndReportingComponent::getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
   openjaus::mobility_v1_0::ConfirmElementRequest elementRequest;
@@ -259,11 +284,36 @@ openjaus::mobility_v1_0::ReportElementCount NavigationAndReportingComponent::get
   return elementCount;
 }
 
+bool NavigationAndReportingComponent::setWrenchEffort(openjaus::mobility_v1_0::SetWrenchEffort *setWrenchEffort) {
+
+  if (!is_ready_) {
+    ROS_INFO("Solo is not ready!");
+    return false;
+  }
+
+  ROS_INFO("Recieved Set Wrench Effort (Linear X: %lf, Angular Z: %lf",
+           setWrenchEffort->getPropulsiveLinearEffortX_percent(),
+           setWrenchEffort->getPropulsiveRotationalEffortZ_percent());
+
+  geometry_msgs::Twist vel;
+
+  if (setWrenchEffort->isPropulsiveLinearEffortXEnabled())
+    vel.linear.x = (setWrenchEffort->getPropulsiveLinearEffortX_percent() / 100.0) * max_linear_x_;
+
+  if (setWrenchEffort->isPropulsiveRotationalEffortZEnabled())
+    vel.angular.z = -(setWrenchEffort->getPropulsiveRotationalEffortZ_percent() / 100.0) * max_angular_z_;
+
+  cmd_vel_pub_.publish(vel);
+
+  return true;
+}
+
 void NavigationAndReportingComponent::onPushToEmergency() {
   ROS_INFO("Set Emergency!");
   is_emergency_ = true;
   dwa_local_planner::SetMaxVel srv;
   srv.request.max_vel.data = 0.0;
+  max_vel_ = 0.0;
   if (set_max_vel_client_.call(srv))
     ROS_INFO("Max velocity was set to %lf m/s", srv.request.max_vel.data);
   else
@@ -278,11 +328,23 @@ void NavigationAndReportingComponent::onPopFromEmergency() {
 void NavigationAndReportingComponent::onEnterReady() {
   ROS_INFO("Solo is ready!");
   is_ready_ = true;
+
+  dwa_local_planner::SetMaxVel mv_srv;
+  mv_srv.request.max_vel.data = max_vel_;
+  set_max_vel_client_.call(mv_srv);
 }
 
 void NavigationAndReportingComponent::onExitReady() {
-  ROS_INFO("Solo is in standby!");
+  ROS_INFO("Solo is not ready!");
   is_ready_ = false;
+  dwa_local_planner::SetMaxVel mv_srv;
+  mv_srv.request.max_vel.data = 0.0;
+  set_max_vel_client_.call(mv_srv);
+
+  geometry_msgs::Twist vel;
+  vel.linear.x = 0.0;
+  vel.angular.z = 0.0;
+  cmd_vel_pub_.publish(vel);
 }
 
 void NavigationAndReportingComponent::velocityCallback(const nav_msgs::Odometry::ConstPtr &msg) {
