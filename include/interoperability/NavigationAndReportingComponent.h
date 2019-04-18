@@ -16,9 +16,14 @@
 #include <openjaus/mobility_v1_0/Services/PrimitiveDriver.h>
 
 #include <ros/ros.h>
+
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/transform_datatypes.h>
+
+#include <tf2_ros/transform_listener.h>
+
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 
@@ -27,7 +32,7 @@
 
 class NavigationAndReportingComponent :
     public virtual openjaus::mobility_v1_0::services::LocalWaypointDriver,
-    public virtual openjaus::mobility_v1_0::services::LocalWaypointListDriver,
+//    public virtual openjaus::mobility_v1_0::services::LocalWaypointListDriver,
     public virtual openjaus::mobility_v1_0::services::VelocityStateSensor,
     public virtual openjaus::mobility_v1_0::services::LocalPoseSensor,
     public virtual openjaus::mobility_v1_0::services::PrimitiveDriver,
@@ -48,14 +53,19 @@ class NavigationAndReportingComponent :
   bool setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) override;
   openjaus::mobility_v1_0::ReportLocalWaypoint getReportLocalWaypoint(openjaus::mobility_v1_0::QueryLocalWaypoint *queryLocalWaypoint) override;
   openjaus::mobility_v1_0::ReportTravelSpeed getReportTravelSpeed(openjaus::mobility_v1_0::QueryTravelSpeed *queryTravelSpeed) override;
+  bool waypointExists(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) override;
 
   // Local Waypoint List Driver
-  openjaus::mobility_v1_0::ConfirmElementRequest getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) override;
-  bool executeLocalWaypointList(openjaus::mobility_v1_0::ExecuteList *executeList) override;
-  openjaus::mobility_v1_0::ReportActiveElement getReportActiveElement(openjaus::mobility_v1_0::QueryActiveElement *queryActiveElement) override;
+//  openjaus::mobility_v1_0::ConfirmElementRequest getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) override;
+//  bool executeLocalWaypointList(openjaus::mobility_v1_0::ExecuteList *executeList) override;
+//  openjaus::mobility_v1_0::ReportActiveElement getReportActiveElement(openjaus::mobility_v1_0::QueryActiveElement *queryActiveElement) override;
+//
+//  openjaus::mobility_v1_0::ReportElementList getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) override;
+//  openjaus::mobility_v1_0::ReportElementCount getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) override;
 
-  openjaus::mobility_v1_0::ReportElementList getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) override;
-  openjaus::mobility_v1_0::ReportElementCount getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) override;
+  // Emergency
+  void onPushToEmergency() override;
+  void onPopFromEmergency() override;
 
   void velocityCallback(const nav_msgs::Odometry::ConstPtr& msg);
 
@@ -67,6 +77,9 @@ class NavigationAndReportingComponent :
   ros::ServiceClient set_max_vel_client_;
   ros::ServiceClient set_local_waypoint_client_;
   ros::ServiceClient get_local_waypoint_client_;
+
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
 
   ros::Subscriber odom_sub_;
 

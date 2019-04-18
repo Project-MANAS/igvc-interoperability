@@ -2,7 +2,7 @@
 // Created by naivehobo on 3/10/19.
 //
 
-#include "NavigationAndReportingComponent.h"
+#include "interoperability/NavigationAndReportingComponent.h"
 
 #include "openjaus.h"
 

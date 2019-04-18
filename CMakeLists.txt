@@ -6,6 +6,8 @@ set(CMAKE_CXX_FLAGS "-std=c++17 -fPIC")
 find_package(catkin REQUIRED COMPONENTS
         roscpp
         tf2
+        tf2_ros
+        tf2_geometry_msgs
         geometry_msgs
         nav_msgs
         robot_localization
@@ -16,6 +18,8 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(CATKIN_DEPENDS
         roscpp
         tf2
+        tf2_ros
+        tf2_geometry_msgs
         geometry_msgs
         nav_msgs
         robot_localization
@@ -49,6 +53,18 @@ target_link_libraries(iop_node
         openjaus-mobility_v1_0
 )
 add_dependencies(iop_node
+        ${${PROJECT_NAME}_EXPORTED_TARGETS}
+        ${catkin_EXPORTED_TARGETS}
+)
+
+add_executable(cvt_node src/CVTComponent.cpp)
+target_link_libraries(cvt_node
+        ${catkin_LIBRARIES}
+        openjaus
+        openjaus-core_v1_1
+        openjaus-mobility_v1_0
+)
+add_dependencies(cvt_node
         ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
 )

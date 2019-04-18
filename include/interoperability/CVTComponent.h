@@ -1,0 +1,10 @@
+//
+// Created by naivehobo on 4/17/19.
+//
+
+#ifndef INTEROPERABILITY_CVT_COMPONENT_H
+#define INTEROPERABILITY_CVT_COMPONENT_H
+
+
+
+#endif //INTEROPERABILITY_CVT_COMPONENT_H
