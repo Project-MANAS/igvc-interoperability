@@ -32,7 +32,7 @@
 
 class NavigationAndReportingComponent :
     public virtual openjaus::mobility_v1_0::services::LocalWaypointDriver,
-//    public virtual openjaus::mobility_v1_0::services::LocalWaypointListDriver,
+    public virtual openjaus::mobility_v1_0::services::LocalWaypointListDriver,
     public virtual openjaus::mobility_v1_0::services::VelocityStateSensor,
     public virtual openjaus::mobility_v1_0::services::LocalPoseSensor,
     public virtual openjaus::mobility_v1_0::services::PrimitiveDriver,
@@ -50,22 +50,23 @@ class NavigationAndReportingComponent :
 
   // Local Waypoint Driver
   bool setLocalWaypoint(openjaus::mobility_v1_0::SetLocalWaypoint *setLocalWaypoint) override;
-  bool setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) override;
+  bool setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed &setTravelSpeed);
   openjaus::mobility_v1_0::ReportLocalWaypoint getReportLocalWaypoint(openjaus::mobility_v1_0::QueryLocalWaypoint *queryLocalWaypoint) override;
   openjaus::mobility_v1_0::ReportTravelSpeed getReportTravelSpeed(openjaus::mobility_v1_0::QueryTravelSpeed *queryTravelSpeed) override;
-  bool waypointExists(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) override;
 
   // Local Waypoint List Driver
-//  openjaus::mobility_v1_0::ConfirmElementRequest getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) override;
-//  bool executeLocalWaypointList(openjaus::mobility_v1_0::ExecuteList *executeList) override;
-//  openjaus::mobility_v1_0::ReportActiveElement getReportActiveElement(openjaus::mobility_v1_0::QueryActiveElement *queryActiveElement) override;
-//
-//  openjaus::mobility_v1_0::ReportElementList getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) override;
-//  openjaus::mobility_v1_0::ReportElementCount getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) override;
+  openjaus::mobility_v1_0::ConfirmElementRequest getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) override;
+  bool executeLocalWaypointList(openjaus::mobility_v1_0::ExecuteList *executeList) override;
+  openjaus::mobility_v1_0::ReportActiveElement getReportActiveElement(openjaus::mobility_v1_0::QueryActiveElement *queryActiveElement) override;
 
-  // Emergency
+  openjaus::mobility_v1_0::ReportElementList getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) override;
+  openjaus::mobility_v1_0::ReportElementCount getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) override;
+
+  // Management Services
   void onPushToEmergency() override;
   void onPopFromEmergency() override;
+  void onEnterReady() override;
+  void onExitReady() override;
 
   void velocityCallback(const nav_msgs::Odometry::ConstPtr& msg);
 
@@ -88,6 +89,7 @@ class NavigationAndReportingComponent :
   std::string odom_topic_;
 
   bool is_emergency_;
+  bool is_ready_;
 
 };
 

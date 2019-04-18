@@ -23,12 +23,16 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
 //  this->setComponentAddress(new openjaus::transport::Address(subsystemID, nodeID, componentID));
 
   this->implements->push_back(openjaus::mobility_v1_0::services::LocalWaypointDriver::create());
-//  this->implements->push_back(openjaus::mobility_v1_0::services::LocalWaypointListDriver::create());
+  this->implements->push_back(openjaus::mobility_v1_0::services::LocalWaypointListDriver::create());
   this->implements->push_back(openjaus::mobility_v1_0::services::VelocityStateSensor::create());
   this->implements->push_back(openjaus::mobility_v1_0::services::LocalPoseSensor::create());
   this->implements->push_back(openjaus::mobility_v1_0::services::PrimitiveDriver::create());
 
   publish(openjaus::mobility_v1_0::ReportVelocityState::ID, -1.0, openjaus::model::ALL_EVENTS);
+  publish(openjaus::mobility_v1_0::ReportLocalPose::ID, -1.0, openjaus::model::ALL_EVENTS);
+  publish(openjaus::core::ReportHeartbeatPulse::ID, -1.0, openjaus::model::ALL_EVENTS);
+  publish(openjaus::core::ReportStatus::ID, -1.0, openjaus::model::ALL_EVENTS);
+  publish(openjaus::core::ReportControl::ID, -1.0, openjaus::model::ALL_EVENTS);
 
   private_node_.param<std::string>("odom_topic", odom_topic_, "odom");
   odom_sub_ = node_.subscribe(odom_topic_, 1, &NavigationAndReportingComponent::velocityCallback, this);
@@ -39,11 +43,14 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
   get_local_waypoint_client_ = node_.serviceClient<waypoint_server::QueryTargetWaypoint>("get_target_waypoint");
 
   is_emergency_ = false;
+  is_ready_ = false;
 
   dwa_local_planner::SetMaxVel srv;
   srv.request.max_vel.data = 0.0;
   if (set_max_vel_client_.call(srv))
     ROS_INFO("Max velocity was set to %lf m/s", srv.request.max_vel.data);
+
+  this->addMessageCallback(&NavigationAndReportingComponent::setLwdTravelSpeed, this);
 
   this->run();
   this->initialized();
@@ -75,7 +82,8 @@ openjaus::mobility_v1_0::ReportLocalPose NavigationAndReportingComponent::getRep
   openjaus::mobility_v1_0::ReportLocalPose localPose;
 
   geometry_msgs::PoseStamped pose;
-  pose.header = odom_msg_.header;
+  pose.header.frame_id = odom_msg_.header.frame_id;
+  pose.header.stamp = odom_msg_.header.stamp;
   pose.pose.position.x = odom_msg_.pose.pose.position.x;
   pose.pose.position.y = odom_msg_.pose.pose.position.y;
   pose.pose.position.z = odom_msg_.pose.pose.position.z;
@@ -152,12 +160,12 @@ bool NavigationAndReportingComponent::setLocalWaypoint(openjaus::mobility_v1_0::
   return true;
 }
 
-bool NavigationAndReportingComponent::setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) {
+bool NavigationAndReportingComponent::setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed &setTravelSpeed) {
 
   dwa_local_planner::SetMaxVel srv;
 
-  if (!is_emergency_)
-    srv.request.max_vel.data = setTravelSpeed->getSpeed_mps();
+  if (!is_emergency_ && is_ready_)
+    srv.request.max_vel.data = setTravelSpeed.getSpeed_mps();
   else
     srv.request.max_vel.data = 0.0;
 
@@ -182,7 +190,7 @@ openjaus::mobility_v1_0::ReportLocalWaypoint NavigationAndReportingComponent::ge
     if (srv.response.status != 0) {
 
       geometry_msgs::PoseStamped pose;
-      pose.header = odom_msg_.header;
+      pose.header = srv.response.waypoint.header;
       pose.pose.position.x = srv.response.waypoint.pose.position.x;
       pose.pose.position.y = srv.response.waypoint.pose.position.y;
       pose.pose.position.z = srv.response.waypoint.pose.position.z;
@@ -221,48 +229,60 @@ openjaus::mobility_v1_0::ReportTravelSpeed NavigationAndReportingComponent::getR
   return travelSpeed;
 }
 
-bool NavigationAndReportingComponent::waypointExists(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) {
+
+openjaus::mobility_v1_0::ConfirmElementRequest NavigationAndReportingComponent::getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
+  openjaus::mobility_v1_0::ConfirmElementRequest elementRequest;
+
+  return elementRequest;
+}
+
+bool NavigationAndReportingComponent::executeLocalWaypointList(openjaus::mobility_v1_0::ExecuteList *executeList) {
+
   return true;
 }
 
-//
-//openjaus::mobility_v1_0::ConfirmElementRequest NavigationAndReportingComponent::getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
-//  openjaus::mobility_v1_0::ConfirmElementRequest elementRequest;
-//
-//  return elementRequest;
-//}
-//
-//bool NavigationAndReportingComponent::executeLocalWaypointList(openjaus::mobility_v1_0::ExecuteList *executeList) {
-//
-//  return true;
-//}
-//
-//openjaus::mobility_v1_0::ReportActiveElement NavigationAndReportingComponent::getReportActiveElement(openjaus::mobility_v1_0::QueryActiveElement *queryActiveElement) {
-//  openjaus::mobility_v1_0::ReportActiveElement activeElement;
-//
-//  return activeElement;
-//}
-//
-//openjaus::mobility_v1_0::ReportElementList NavigationAndReportingComponent::getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) {
-//  openjaus::mobility_v1_0::ReportElementList elementList;
-//
-//  return elementList;
-//}
-//
-//openjaus::mobility_v1_0::ReportElementCount NavigationAndReportingComponent::getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) {
-//  openjaus::mobility_v1_0::ReportElementCount elementCount;
-//
-//  return elementCount;
-//}
+openjaus::mobility_v1_0::ReportActiveElement NavigationAndReportingComponent::getReportActiveElement(openjaus::mobility_v1_0::QueryActiveElement *queryActiveElement) {
+  openjaus::mobility_v1_0::ReportActiveElement activeElement;
+
+  return activeElement;
+}
+
+openjaus::mobility_v1_0::ReportElementList NavigationAndReportingComponent::getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) {
+  openjaus::mobility_v1_0::ReportElementList elementList;
+
+  return elementList;
+}
+
+openjaus::mobility_v1_0::ReportElementCount NavigationAndReportingComponent::getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) {
+  openjaus::mobility_v1_0::ReportElementCount elementCount;
+
+  return elementCount;
+}
 
 void NavigationAndReportingComponent::onPushToEmergency() {
   ROS_INFO("Set Emergency!");
   is_emergency_ = true;
+  dwa_local_planner::SetMaxVel srv;
+  srv.request.max_vel.data = 0.0;
+  if (set_max_vel_client_.call(srv))
+    ROS_INFO("Max velocity was set to %lf m/s", srv.request.max_vel.data);
+  else
+    ROS_ERROR("Failed to call service set_max_vel in dwa_local_planner package");
 }
 
 void NavigationAndReportingComponent::onPopFromEmergency() {
   ROS_INFO("Cleared Emergency!");
   is_emergency_ = false;
+}
+
+void NavigationAndReportingComponent::onEnterReady() {
+  ROS_INFO("Solo is ready!");
+  is_ready_ = true;
+}
+
+void NavigationAndReportingComponent::onExitReady() {
+  ROS_INFO("Solo is in standby!");
+  is_ready_ = false;
 }
 
 void NavigationAndReportingComponent::velocityCallback(const nav_msgs::Odometry::ConstPtr &msg) {

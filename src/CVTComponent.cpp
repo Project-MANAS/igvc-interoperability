@@ -24,12 +24,15 @@ bool processReportVelocityState(mobility_v1_0::ReportVelocityState &report);
 bool processReportLocalWaypoint(mobility_v1_0::ReportLocalWaypoint &report);
 bool processReportTravelSpeed(mobility_v1_0::ReportTravelSpeed &report);
 bool processReportStatus(core_v1_1::ReportStatus &report);
+bool processReportHeartbeatPulse(core_v1_1::ReportHeartbeatPulse &report);
+bool processReportControl(core_v1_1::ReportControl &report);
 bool processReportTimeout(core_v1_1::ReportTimeout &report);
 void processControlResponse(const model::ControlResponse &response);
+void processEventRequestResponse(const model::EventRequestResponseArgs &response);
 
 static bool mainRunning = false;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
   ros::init(argc, argv, "cvt_node");
 
@@ -42,6 +45,8 @@ int main(int argc, char** argv) {
     core_v1_1::Base component("CVT");
 
     component.addMessageCallback(processReportStatus);
+    component.addMessageCallback(processReportHeartbeatPulse);
+    component.addMessageCallback(processReportControl);
     component.addMessageCallback(processReportTimeout);
     component.addMessageCallback(processReportLocalPose);
     component.addMessageCallback(processReportLocalWaypoint);
@@ -203,7 +208,7 @@ int main(int argc, char** argv) {
         {
           std::cout << "Sending Query Status" << std::endl;
 
-          core_v1_1::QueryStatus* query = new core_v1_1::QueryStatus();
+          auto *query = new core_v1_1::QueryStatus();
           sendMessage(component, cmp_list, query);
           break;
         }
@@ -212,7 +217,7 @@ int main(int argc, char** argv) {
         {
           std::cout << "Sending Reset" << std::endl;
 
-          core_v1_1::Reset *reset = new core_v1_1::Reset();
+          auto *reset = new core_v1_1::Reset();
           sendMessage(component, cmp_list, reset);
           break;
         }
@@ -221,7 +226,7 @@ int main(int argc, char** argv) {
         {
           std::cout << "Sending Resume" << std::endl;
 
-          core_v1_1::Resume *resume = new core_v1_1::Resume();
+          auto *resume = new core_v1_1::Resume();
           sendMessage(component, cmp_list, resume);
           break;
         }
@@ -230,7 +235,7 @@ int main(int argc, char** argv) {
         {
           std::cout << "Sending Set Emergency" << std::endl;
 
-          core_v1_1::SetEmergency *setEmergency = new core_v1_1::SetEmergency();
+          auto *setEmergency = new core_v1_1::SetEmergency();
           sendMessage(component, cmp_list, setEmergency);
           break;
         }
@@ -239,7 +244,7 @@ int main(int argc, char** argv) {
         {
           std::cout << "Sending Clear Emergency" << std::endl;
 
-          core_v1_1::ClearEmergency *clearEmergency = new core_v1_1::ClearEmergency();
+          auto *clearEmergency = new core_v1_1::ClearEmergency();
           sendMessage(component, cmp_list, clearEmergency);
           break;
         }
@@ -248,7 +253,7 @@ int main(int argc, char** argv) {
         {
           std::cout << "Sending Shutdown" << std::endl;
 
-          core_v1_1::Shutdown *shutdown = new core_v1_1::Shutdown();
+          auto *shutdown = new core_v1_1::Shutdown();
           sendMessage(component, cmp_list, shutdown);
           break;
         }
@@ -257,8 +262,88 @@ int main(int argc, char** argv) {
         {
           std::cout << "Sending Standby" << std::endl;
 
-          core_v1_1::Standby *standby = new core_v1_1::Standby();
+          auto *standby = new core_v1_1::Standby();
           sendMessage(component, cmp_list, standby);
+          break;
+        }
+
+        case '!': // Create Periodic Event (Report Local Pose)
+        {
+          if (!cmp_list.empty() && periodicSubscriptionId == 0) {
+            auto *query = new mobility_v1_0::QueryLocalPose();
+
+            query->setQueryPresenceVector(mobility_v1_0::ReportLocalPose::PV_ALL_FIELDS);
+
+            periodicSubscriptionId =
+                component.subscribePeriodic(cmp_list.at(0), query, 1.0, &processEventRequestResponse);
+
+            std::cout << "Created Periodic Report Local Pose Event: " << periodicSubscriptionId << std::endl;
+          }
+          break;
+        }
+
+        case '@': // Create Periodic Event (Report Velocity State)
+        {
+          if (!cmp_list.empty() && periodicSubscriptionId == 0) {
+            auto *query = new mobility_v1_0::QueryVelocityState();
+
+            query->setQueryPresenceVector(mobility_v1_0::ReportVelocityState::PV_ALL_FIELDS);
+
+            periodicSubscriptionId =
+                component.subscribePeriodic(cmp_list.at(0), query, 1.0, &processEventRequestResponse);
+
+            std::cout << "Created Periodic Report Velocity State Event: " << periodicSubscriptionId << std::endl;
+          }
+          break;
+        }
+
+        case '#': // Create Periodic Event (Report Heartbeat Pulse)
+        {
+          if (!cmp_list.empty() && periodicSubscriptionId == 0) {
+            auto *query = new core::QueryHeartbeatPulse();
+
+            periodicSubscriptionId =
+                component.subscribePeriodic(cmp_list.at(0), query, 1.0, &processEventRequestResponse);
+
+            std::cout << "Created Periodic Report Heartbeat Pulse Event: " << periodicSubscriptionId << std::endl;
+          }
+          break;
+        }
+
+        case '$': // Create Periodic Event (Report Status)
+        {
+          if (!cmp_list.empty() && periodicSubscriptionId == 0) {
+            auto *query = new core::QueryStatus();
+
+            periodicSubscriptionId =
+                component.subscribePeriodic(cmp_list.at(0), query, 1.0, &processEventRequestResponse);
+
+            std::cout << "Created Periodic Report Status Event: " << periodicSubscriptionId << std::endl;
+          }
+          break;
+        }
+
+        case '%': // Create Periodic Event (Report Control)
+        {
+          if (!cmp_list.empty() && periodicSubscriptionId == 0) {
+            auto *query = new core::QueryControl();
+
+            periodicSubscriptionId =
+                component.subscribePeriodic(cmp_list.at(0), query, 1.0, &processEventRequestResponse);
+
+            std::cout << "Created Periodic Report Control Event: " << periodicSubscriptionId << std::endl;
+          }
+          break;
+        }
+
+        case '^': // Cancel Periodic Event
+        {
+          if (periodicSubscriptionId != 0) {
+            std::cout << "Un-subscribing Periodic Event: " << periodicSubscriptionId << std::endl;
+            if (component.unsubscribe(periodicSubscriptionId, &processEventRequestResponse)) {
+              periodicSubscriptionId = 0;
+            }
+          }
           break;
         }
       }
@@ -301,6 +386,13 @@ void printMenu() {
   std::cout << "5 - Set Local Pose\n";
   std::cout << "6 - Set Local Waypoint\n";
   std::cout << "7 - Set Travel Speed\n";
+  std::cout << "Event Services\n";
+  std::cout << "! - Create Periodic Report Local Pose Event (1 hz)\n";
+  std::cout << "@ - Create Periodic Report Velocity State Event (1 hz)\n";
+  std::cout << "# - Create Periodic Report Heartbeat Pulse Event (1 hz)\n";
+  std::cout << "$ - Create Periodic Report Status Event (1 hz)\n";
+  std::cout << "% - Create Periodic Report Control Event (1 hz)\n";
+  std::cout << "^ - Cancel Periodic Event\n";
   std::cout << "ESC - Exit Component\n";
 }
 
@@ -311,7 +403,7 @@ void sendMessage(core_v1_1::Base &component, const std::vector<transport::Addres
     message->setDestination(cmp_list.at(0));
     component.sendMessage(message);
   } else {
-    std::cout << "No known component!. You need to find one first." << std::endl;
+    std::cout << "No known component! You need to find one first." << std::endl;
   }
 }
 
@@ -375,6 +467,19 @@ bool processReportStatus(core_v1_1::ReportStatus &report) {
   return true;
 }
 
+bool processReportHeartbeatPulse(core_v1_1::ReportHeartbeatPulse &report) {
+  std::cout << "Recveived Report Heartbeat Pulse from: " << report.getSource() << std::endl;
+  return true;
+}
+
+bool processReportControl(core_v1_1::ReportControl &report) {
+  std::cout << "Recveived Report Control from: " << report.getSource() << std::endl;
+  std::cout << "SubsystemID: " << report.getSubsystemID() << std::endl;
+  std::cout << "NodeID: " << report.getNodeID() << std::endl;
+  std::cout << "ComponentID: " << report.getComponentID() << std::endl;
+  return true;
+}
+
 bool processReportTimeout(core_v1_1::ReportTimeout &report) {
   std::cout << "Received Report Timeout\n";
   std::cout << "Timeout (sec): " << (int) report.getTimeout_sec() << std::endl;
@@ -384,4 +489,13 @@ bool processReportTimeout(core_v1_1::ReportTimeout &report) {
 void processControlResponse(const model::ControlResponse &response) {
   std::cout << "Recv Control Request Response from: " << response.getAddress() << std::endl;
   std::cout << "Response code: " << response.getResponseType() << std::endl;
+}
+
+void processEventRequestResponse(const model::EventRequestResponseArgs &response) {
+  std::cout << "---------------------------" << std::endl;
+  std::cout << "Received Event Request Response from: " << response.getSourceAddress() << std::endl;
+  std::cout << "Connection type: " << response.getConnectionType() << std::endl;
+  std::cout << "Message Requested: 0x" << std::hex << response.getQueryId() << std::endl;
+  std::cout << "Response: " << response.getResponseType() << std::endl;
+  std::cout << "---------------------------" << std::endl;
 }
