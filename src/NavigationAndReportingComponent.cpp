@@ -46,11 +46,12 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
   private_node_.param("max_linear_x", max_linear_x_, 0.5);
   private_node_.param("max_angular_z", max_angular_z_, 0.25);
 
-  this->addMessageCallback(&NavigationAndReportingComponent::setLwdTravelSpeed, this);
-
   this->run();
   this->initialized();
 }
+
+
+// VELOCITY STATE SENSOR FUNCTIONS
 
 openjaus::mobility_v1_0::ReportVelocityState NavigationAndReportingComponent::getReportVelocityState(openjaus::mobility_v1_0::QueryVelocityState *queryVelocityState) {
 
@@ -83,6 +84,9 @@ openjaus::mobility_v1_0::ReportVelocityState NavigationAndReportingComponent::ge
 
   return velocityState;
 }
+
+
+// LOCAL POSE SENSOR FUNCTIONS
 
 openjaus::mobility_v1_0::ReportLocalPose NavigationAndReportingComponent::getReportLocalPose(openjaus::mobility_v1_0::QueryLocalPose *queryLocalPose) {
 
@@ -151,6 +155,17 @@ bool NavigationAndReportingComponent::updateLocalPose(openjaus::mobility_v1_0::S
   return true;
 }
 
+
+// LOCAL WAYPOINT DRIVER FUNCTIONS
+
+void NavigationAndReportingComponent::resetLwdTravelSpeed() {
+  dwa_local_planner::SetMaxVel srv;
+  srv.request.max_vel.data = 0.0;
+  set_max_vel_client_.call(srv);
+  max_vel_ = 0.0;
+  ROS_INFO("Max travel speed was reset to 0 m/s");
+}
+
 bool NavigationAndReportingComponent::setLocalWaypoint(openjaus::mobility_v1_0::SetLocalWaypoint *setLocalWaypoint) {
 
   waypoint_server::SetPoseWaypoint srv;
@@ -159,6 +174,7 @@ bool NavigationAndReportingComponent::setLocalWaypoint(openjaus::mobility_v1_0::
   srv.request.waypoint.header.stamp = ros::Time::now();
   srv.request.waypoint.pose.position.x = setLocalWaypoint->getX_m();
   srv.request.waypoint.pose.position.y = -setLocalWaypoint->getY_m();
+  srv.request.mode = 2;
 
   dwa_local_planner::SetMaxVel mv_srv;
 
@@ -181,12 +197,12 @@ bool NavigationAndReportingComponent::setLocalWaypoint(openjaus::mobility_v1_0::
   return true;
 }
 
-bool NavigationAndReportingComponent::setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed &setTravelSpeed) {
+bool NavigationAndReportingComponent::setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) {
 
   dwa_local_planner::SetMaxVel srv;
 
   if (!is_emergency_)
-    max_vel_ = setTravelSpeed.getSpeed_mps();
+    max_vel_ = setTravelSpeed->getSpeed_mps();
   else
     max_vel_ = 0.0;
 
@@ -245,20 +261,33 @@ openjaus::mobility_v1_0::ReportLocalWaypoint NavigationAndReportingComponent::ge
 }
 
 openjaus::mobility_v1_0::ReportTravelSpeed NavigationAndReportingComponent::getReportTravelSpeed(openjaus::mobility_v1_0::QueryTravelSpeed *queryTravelSpeed) {
-
   openjaus::mobility_v1_0::ReportTravelSpeed travelSpeed;
-
   travelSpeed.setSpeed_mps(max_vel_);
-
   ROS_INFO("Report travel speed: %lf m/s", max_vel_);
-
   return travelSpeed;
 }
 
-openjaus::mobility_v1_0::ConfirmElementRequest NavigationAndReportingComponent::getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
-  openjaus::mobility_v1_0::ConfirmElementRequest elementRequest;
+bool NavigationAndReportingComponent::waypointExists(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) {
+  waypoint_server::QueryTargetWaypoint srv;
+  if (get_local_waypoint_client_.call(srv))
+    return srv.response.status;
+  return false;
+}
 
-  return elementRequest;
+
+// LOCAL WAYPOINT LIST DRIVER FUNCTIONS
+
+void NavigationAndReportingComponent::resetLwldTravelSpeed() {
+  dwa_local_planner::SetMaxVel srv;
+  srv.request.max_vel.data = 0.0;
+  set_max_vel_client_.call(srv);
+  max_vel_ = 0.0;
+  ROS_INFO("Max travel speed was set to 0 m/s");
+}
+
+bool NavigationAndReportingComponent::setLocalWaypointElement(openjaus::mobility_v1_0::SetElement *setElement) {
+
+  return true;
 }
 
 bool NavigationAndReportingComponent::executeLocalWaypointList(openjaus::mobility_v1_0::ExecuteList *executeList) {
@@ -266,15 +295,54 @@ bool NavigationAndReportingComponent::executeLocalWaypointList(openjaus::mobilit
   return true;
 }
 
+bool NavigationAndReportingComponent::modifyLwldTravelSpeed(openjaus::mobility_v1_0::ExecuteList *executeList) {
+
+  return true;
+}
+
 openjaus::mobility_v1_0::ReportActiveElement NavigationAndReportingComponent::getReportActiveElement(openjaus::mobility_v1_0::QueryActiveElement *queryActiveElement) {
   openjaus::mobility_v1_0::ReportActiveElement activeElement;
-
+  activeElement.setElementUID(element_list_.getElementRec().data()->getElementUID());
   return activeElement;
 }
 
+openjaus::mobility_v1_0::ConfirmElementRequest NavigationAndReportingComponent::getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
+  openjaus::mobility_v1_0::ConfirmElementRequest elementRequest;
+  elementRequest.setRequestID(setElement->getRequestID());
+  element_list_ = setElement->getElementList();
+  return elementRequest;
+}
+
+openjaus::mobility_v1_0::RejectElementRequest NavigationAndReportingComponent::getRejectElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
+  openjaus::mobility_v1_0::RejectElementRequest elementRequest;
+  return elementRequest;
+}
+
+bool NavigationAndReportingComponent::lwldWaypointExists(openjaus::mobility_v1_0::QueryLocalWaypoint *queryLocalWaypoint) {
+  return true;
+}
+
+bool NavigationAndReportingComponent::lwldElementExists(openjaus::mobility_v1_0::ExecuteList *executeList) {
+  return true;
+}
+
+bool NavigationAndReportingComponent::isValidLwldElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
+  return true;
+}
+
+bool NavigationAndReportingComponent::isLwldElementSupported(openjaus::mobility_v1_0::SetElement *setElement) {
+  return true;
+}
+
+bool NavigationAndReportingComponent::lwldElementSpecified(openjaus::model::Trigger *trigger) {
+  return true;
+}
+
+
+// LIST MANAGER FUNCTIONS
+
 openjaus::mobility_v1_0::ReportElementList NavigationAndReportingComponent::getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) {
   openjaus::mobility_v1_0::ReportElementList elementList;
-
   return elementList;
 }
 
@@ -283,6 +351,37 @@ openjaus::mobility_v1_0::ReportElementCount NavigationAndReportingComponent::get
 
   return elementCount;
 }
+
+openjaus::mobility_v1_0::RejectElementRequest NavigationAndReportingComponent::getRejectElementRequest(openjaus::mobility_v1_0::DeleteElement *deleteElement) {
+  openjaus::mobility_v1_0::RejectElementRequest elementRequest;
+  return elementRequest;
+}
+
+bool NavigationAndReportingComponent::setElement(openjaus::mobility_v1_0::SetElement *setElement) {
+  return true;
+}
+
+bool NavigationAndReportingComponent::deleteElement(openjaus::mobility_v1_0::DeleteElement *deleteElement) {
+  return true;
+}
+
+bool NavigationAndReportingComponent::elementExists(openjaus::mobility_v1_0::QueryElement *queryElement) {
+  return true;
+}
+
+bool NavigationAndReportingComponent::elementExists(openjaus::mobility_v1_0::DeleteElement *deleteElement) {
+  return true;
+}
+
+bool NavigationAndReportingComponent::isValidElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
+  return true;
+}
+
+bool NavigationAndReportingComponent::isElementSupported(openjaus::mobility_v1_0::SetElement *setElement) {
+  return true;
+}
+
+// PRIMITIVE DRIVER FUNCTIONS
 
 bool NavigationAndReportingComponent::setWrenchEffort(openjaus::mobility_v1_0::SetWrenchEffort *setWrenchEffort) {
 
@@ -307,6 +406,14 @@ bool NavigationAndReportingComponent::setWrenchEffort(openjaus::mobility_v1_0::S
 
   return true;
 }
+
+openjaus::mobility_v1_0::ReportWrenchEffort NavigationAndReportingComponent::getReportWrenchEffort(openjaus::mobility_v1_0::QueryWrenchEffort *queryWrenchEffort) {
+  openjaus::mobility_v1_0::ReportWrenchEffort wrenchEffort;
+  return wrenchEffort;
+}
+
+
+// MANAGEMENT FUNCTIONS
 
 void NavigationAndReportingComponent::onPushToEmergency() {
   ROS_INFO("Set Emergency!");

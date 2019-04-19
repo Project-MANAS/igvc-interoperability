@@ -14,6 +14,7 @@
 #include <openjaus/mobility_v1_0/Services/VelocityStateSensor.h>
 #include <openjaus/mobility_v1_0/Services/LocalPoseSensor.h>
 #include <openjaus/mobility_v1_0/Services/PrimitiveDriver.h>
+#include <openjaus/mobility_v1_0/Services/ListManager.h>
 
 #include <ros/ros.h>
 
@@ -49,21 +50,41 @@ class NavigationAndReportingComponent :
   bool updateLocalPose(openjaus::mobility_v1_0::SetLocalPose *setLocalPose) override;
 
   // Local Waypoint Driver
+  void resetLwdTravelSpeed() override;
   bool setLocalWaypoint(openjaus::mobility_v1_0::SetLocalWaypoint *setLocalWaypoint) override;
-  bool setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed &setTravelSpeed);
+  bool setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) override;
   openjaus::mobility_v1_0::ReportLocalWaypoint getReportLocalWaypoint(openjaus::mobility_v1_0::QueryLocalWaypoint *queryLocalWaypoint) override;
   openjaus::mobility_v1_0::ReportTravelSpeed getReportTravelSpeed(openjaus::mobility_v1_0::QueryTravelSpeed *queryTravelSpeed) override;
+  bool waypointExists(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) override;
 
   // Local Waypoint List Driver
-  openjaus::mobility_v1_0::ConfirmElementRequest getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) override;
+  void resetLwldTravelSpeed() override;
+  bool setLocalWaypointElement(openjaus::mobility_v1_0::SetElement *setElement) override;
   bool executeLocalWaypointList(openjaus::mobility_v1_0::ExecuteList *executeList) override;
+  bool modifyLwldTravelSpeed(openjaus::mobility_v1_0::ExecuteList *executeList) override;
   openjaus::mobility_v1_0::ReportActiveElement getReportActiveElement(openjaus::mobility_v1_0::QueryActiveElement *queryActiveElement) override;
+  openjaus::mobility_v1_0::ConfirmElementRequest getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) override;
+  openjaus::mobility_v1_0::RejectElementRequest getRejectElementRequest(openjaus::mobility_v1_0::SetElement *setElement) override;
+  bool lwldWaypointExists(openjaus::mobility_v1_0::QueryLocalWaypoint *queryLocalWaypoint) override;
+  bool lwldElementExists(openjaus::mobility_v1_0::ExecuteList *executeList) override;
+  bool isValidLwldElementRequest(openjaus::mobility_v1_0::SetElement *setElement) override;
+  bool isLwldElementSupported(openjaus::mobility_v1_0::SetElement *setElement) override;
+  bool lwldElementSpecified(openjaus::model::Trigger *trigger) override;
 
+  // List Manager
   openjaus::mobility_v1_0::ReportElementList getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) override;
   openjaus::mobility_v1_0::ReportElementCount getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) override;
+  openjaus::mobility_v1_0::RejectElementRequest getRejectElementRequest(openjaus::mobility_v1_0::DeleteElement *deleteElement) override;
+  bool setElement(openjaus::mobility_v1_0::SetElement *setElement) override;
+  bool deleteElement(openjaus::mobility_v1_0::DeleteElement *deleteElement) override;
+  bool elementExists(openjaus::mobility_v1_0::QueryElement *queryElement) override;
+  bool elementExists(openjaus::mobility_v1_0::DeleteElement *deleteElement) override;
+  bool isValidElementRequest(openjaus::mobility_v1_0::SetElement *setElement) override;
+  bool isElementSupported(openjaus::mobility_v1_0::SetElement *setElement) override;
 
   // Primitive Driver
   bool setWrenchEffort(openjaus::mobility_v1_0::SetWrenchEffort *setWrenchEffort) override;
+  openjaus::mobility_v1_0::ReportWrenchEffort getReportWrenchEffort(openjaus::mobility_v1_0::QueryWrenchEffort *queryWrenchEffort) override;
 
   // Management Services
   void onPushToEmergency() override;
@@ -92,6 +113,8 @@ class NavigationAndReportingComponent :
   nav_msgs::Odometry odom_msg_;
 
   std::string odom_topic_;
+
+  openjaus::mobility_v1_0::ElementListRefArray element_list_;
 
   double max_vel_;
   double max_linear_x_;
