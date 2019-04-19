@@ -28,6 +28,7 @@
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 
+#include <vector>
 #include <memory>
 #include <string>
 
@@ -74,13 +75,6 @@ class NavigationAndReportingComponent :
   // List Manager
   openjaus::mobility_v1_0::ReportElementList getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) override;
   openjaus::mobility_v1_0::ReportElementCount getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) override;
-  openjaus::mobility_v1_0::RejectElementRequest getRejectElementRequest(openjaus::mobility_v1_0::DeleteElement *deleteElement) override;
-  bool setElement(openjaus::mobility_v1_0::SetElement *setElement) override;
-  bool deleteElement(openjaus::mobility_v1_0::DeleteElement *deleteElement) override;
-  bool elementExists(openjaus::mobility_v1_0::QueryElement *queryElement) override;
-  bool elementExists(openjaus::mobility_v1_0::DeleteElement *deleteElement) override;
-  bool isValidElementRequest(openjaus::mobility_v1_0::SetElement *setElement) override;
-  bool isElementSupported(openjaus::mobility_v1_0::SetElement *setElement) override;
 
   // Primitive Driver
   bool setWrenchEffort(openjaus::mobility_v1_0::SetWrenchEffort *setWrenchEffort) override;
@@ -91,6 +85,7 @@ class NavigationAndReportingComponent :
   void onPopFromEmergency() override;
   void onEnterReady() override;
   void onExitReady() override;
+  void onEnterInit() override;
 
   void velocityCallback(const nav_msgs::Odometry::ConstPtr& msg);
 
@@ -114,13 +109,16 @@ class NavigationAndReportingComponent :
 
   std::string odom_topic_;
 
-  openjaus::mobility_v1_0::ElementListRefArray element_list_;
-
   double max_vel_;
   double max_linear_x_;
   double max_angular_z_;
   bool is_emergency_;
   bool is_ready_;
+
+  std::vector<openjaus::mobility_v1_0::ElementListRefArray> element_list_;
+  openjaus::mobility_v1_0::ElementListRefArray current_element_;
+
+  bool setMaxVelocity(double vel);
 
 };
 

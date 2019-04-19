@@ -134,7 +134,7 @@ bool NavigationAndReportingComponent::updateLocalPose(openjaus::mobility_v1_0::S
   robot_localization::SetPose srv;
 
   srv.request.pose.header.stamp = ros::Time::now();
-  srv.request.pose.header.frame_id = "odom";
+  srv.request.pose.header.frame_id = odom_topic_;
   srv.request.pose.pose.pose.position.x = setLocalPose->getX_m();
   srv.request.pose.pose.pose.position.y = -setLocalPose->getY_m();
   srv.request.pose.pose.pose.position.z = 0.0;
@@ -159,31 +159,24 @@ bool NavigationAndReportingComponent::updateLocalPose(openjaus::mobility_v1_0::S
 // LOCAL WAYPOINT DRIVER FUNCTIONS
 
 void NavigationAndReportingComponent::resetLwdTravelSpeed() {
-  dwa_local_planner::SetMaxVel srv;
-  srv.request.max_vel.data = 0.0;
-  set_max_vel_client_.call(srv);
   max_vel_ = 0.0;
-  ROS_INFO("Max travel speed was reset to 0 m/s");
+  setMaxVelocity(0.0);
 }
 
 bool NavigationAndReportingComponent::setLocalWaypoint(openjaus::mobility_v1_0::SetLocalWaypoint *setLocalWaypoint) {
 
   waypoint_server::SetPoseWaypoint srv;
 
-  srv.request.waypoint.header.frame_id = "odom";
+  srv.request.waypoint.header.frame_id = odom_topic_;
   srv.request.waypoint.header.stamp = ros::Time::now();
   srv.request.waypoint.pose.position.x = setLocalWaypoint->getX_m();
   srv.request.waypoint.pose.position.y = -setLocalWaypoint->getY_m();
   srv.request.mode = 2;
 
-  dwa_local_planner::SetMaxVel mv_srv;
-
   if (is_emergency_ || !is_ready_)
-    mv_srv.request.max_vel.data = 0.0;
+    setMaxVelocity(0.0);
   else
-    mv_srv.request.max_vel.data = max_vel_;
-
-  set_max_vel_client_.call(mv_srv);
+    setMaxVelocity(max_vel_);
 
   if (set_local_waypoint_client_.call(srv))
     ROS_INFO("Local waypoint was set to (X: %lf, Y: %lf)",
@@ -199,24 +192,15 @@ bool NavigationAndReportingComponent::setLocalWaypoint(openjaus::mobility_v1_0::
 
 bool NavigationAndReportingComponent::setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) {
 
-  dwa_local_planner::SetMaxVel srv;
-
   if (!is_emergency_)
     max_vel_ = setTravelSpeed->getSpeed_mps();
   else
     max_vel_ = 0.0;
 
   if (is_ready_)
-    srv.request.max_vel.data = max_vel_;
+    setMaxVelocity(max_vel_);
   else
-    srv.request.max_vel.data = 0.0;
-
-  if (set_max_vel_client_.call(srv))
-    ROS_INFO("Max velocity was set to %lf m/s", srv.request.max_vel.data);
-  else {
-    ROS_ERROR("Failed to call service 'move_base/DWAPlannerROS/set_max_vel' in dwa_local_planner package");
-    return false;
-  }
+    setMaxVelocity(0.0);
 
   return true;
 }
@@ -241,7 +225,7 @@ openjaus::mobility_v1_0::ReportLocalWaypoint NavigationAndReportingComponent::ge
       pose.pose.orientation.z = srv.response.waypoint.pose.orientation.z;
       pose.pose.orientation.w = srv.response.waypoint.pose.orientation.w;
 
-      tf_buffer_.transform(pose, pose, "odom");
+      tf_buffer_.transform(pose, pose, odom_topic_);
 
       localWaypoint.setX_m(pose.pose.position.x);
       localWaypoint.setY_m(-pose.pose.position.y);
@@ -278,38 +262,34 @@ bool NavigationAndReportingComponent::waypointExists(openjaus::mobility_v1_0::Se
 // LOCAL WAYPOINT LIST DRIVER FUNCTIONS
 
 void NavigationAndReportingComponent::resetLwldTravelSpeed() {
-  dwa_local_planner::SetMaxVel srv;
-  srv.request.max_vel.data = 0.0;
-  set_max_vel_client_.call(srv);
   max_vel_ = 0.0;
-  ROS_INFO("Max travel speed was set to 0 m/s");
+  setMaxVelocity(0.0);
 }
 
 bool NavigationAndReportingComponent::setLocalWaypointElement(openjaus::mobility_v1_0::SetElement *setElement) {
-
+  element_list_.push_back(setElement->getElementList());
   return true;
 }
 
 bool NavigationAndReportingComponent::executeLocalWaypointList(openjaus::mobility_v1_0::ExecuteList *executeList) {
-
   return true;
 }
 
 bool NavigationAndReportingComponent::modifyLwldTravelSpeed(openjaus::mobility_v1_0::ExecuteList *executeList) {
-
+  max_vel_ = executeList->getSpeed_mps();
+  setMaxVelocity(max_vel_);
   return true;
 }
 
 openjaus::mobility_v1_0::ReportActiveElement NavigationAndReportingComponent::getReportActiveElement(openjaus::mobility_v1_0::QueryActiveElement *queryActiveElement) {
   openjaus::mobility_v1_0::ReportActiveElement activeElement;
-  activeElement.setElementUID(element_list_.getElementRec().data()->getElementUID());
+  activeElement.setElementUID(current_element_.getElementRec().data()->getElementUID());
   return activeElement;
 }
 
 openjaus::mobility_v1_0::ConfirmElementRequest NavigationAndReportingComponent::getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
   openjaus::mobility_v1_0::ConfirmElementRequest elementRequest;
   elementRequest.setRequestID(setElement->getRequestID());
-  element_list_ = setElement->getElementList();
   return elementRequest;
 }
 
@@ -319,6 +299,7 @@ openjaus::mobility_v1_0::RejectElementRequest NavigationAndReportingComponent::g
 }
 
 bool NavigationAndReportingComponent::lwldWaypointExists(openjaus::mobility_v1_0::QueryLocalWaypoint *queryLocalWaypoint) {
+
   return true;
 }
 
@@ -349,37 +330,10 @@ openjaus::mobility_v1_0::ReportElementList NavigationAndReportingComponent::getR
 openjaus::mobility_v1_0::ReportElementCount NavigationAndReportingComponent::getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) {
   openjaus::mobility_v1_0::ReportElementCount elementCount;
 
+
   return elementCount;
 }
 
-openjaus::mobility_v1_0::RejectElementRequest NavigationAndReportingComponent::getRejectElementRequest(openjaus::mobility_v1_0::DeleteElement *deleteElement) {
-  openjaus::mobility_v1_0::RejectElementRequest elementRequest;
-  return elementRequest;
-}
-
-bool NavigationAndReportingComponent::setElement(openjaus::mobility_v1_0::SetElement *setElement) {
-  return true;
-}
-
-bool NavigationAndReportingComponent::deleteElement(openjaus::mobility_v1_0::DeleteElement *deleteElement) {
-  return true;
-}
-
-bool NavigationAndReportingComponent::elementExists(openjaus::mobility_v1_0::QueryElement *queryElement) {
-  return true;
-}
-
-bool NavigationAndReportingComponent::elementExists(openjaus::mobility_v1_0::DeleteElement *deleteElement) {
-  return true;
-}
-
-bool NavigationAndReportingComponent::isValidElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
-  return true;
-}
-
-bool NavigationAndReportingComponent::isElementSupported(openjaus::mobility_v1_0::SetElement *setElement) {
-  return true;
-}
 
 // PRIMITIVE DRIVER FUNCTIONS
 
@@ -418,13 +372,7 @@ openjaus::mobility_v1_0::ReportWrenchEffort NavigationAndReportingComponent::get
 void NavigationAndReportingComponent::onPushToEmergency() {
   ROS_INFO("Set Emergency!");
   is_emergency_ = true;
-  dwa_local_planner::SetMaxVel srv;
-  srv.request.max_vel.data = 0.0;
-  max_vel_ = 0.0;
-  if (set_max_vel_client_.call(srv))
-    ROS_INFO("Max velocity was set to %lf m/s", srv.request.max_vel.data);
-  else
-    ROS_ERROR("Failed to call service set_max_vel in dwa_local_planner package");
+  setMaxVelocity(0.0);
 }
 
 void NavigationAndReportingComponent::onPopFromEmergency() {
@@ -435,25 +383,32 @@ void NavigationAndReportingComponent::onPopFromEmergency() {
 void NavigationAndReportingComponent::onEnterReady() {
   ROS_INFO("Solo is ready!");
   is_ready_ = true;
-
-  dwa_local_planner::SetMaxVel mv_srv;
-  mv_srv.request.max_vel.data = max_vel_;
-  set_max_vel_client_.call(mv_srv);
+  setMaxVelocity(max_vel_);
 }
 
 void NavigationAndReportingComponent::onExitReady() {
   ROS_INFO("Solo is not ready!");
   is_ready_ = false;
-  dwa_local_planner::SetMaxVel mv_srv;
-  mv_srv.request.max_vel.data = 0.0;
-  set_max_vel_client_.call(mv_srv);
-
+  setMaxVelocity(0.0);
   geometry_msgs::Twist vel;
   vel.linear.x = 0.0;
   vel.angular.z = 0.0;
   cmd_vel_pub_.publish(vel);
 }
 
+void NavigationAndReportingComponent::onEnterInit() {
+  this->initialized();
+  ROS_INFO("Solo has been initialized!");
+}
+
+
 void NavigationAndReportingComponent::velocityCallback(const nav_msgs::Odometry::ConstPtr &msg) {
   odom_msg_ = *msg;
+}
+
+bool NavigationAndReportingComponent::setMaxVelocity(double vel) {
+  dwa_local_planner::SetMaxVel mv_srv;
+  mv_srv.request.max_vel.data = vel;
+  ROS_INFO("Max travel speed was set to %lf m/s", vel);
+  return set_max_vel_client_.call(mv_srv);
 }
