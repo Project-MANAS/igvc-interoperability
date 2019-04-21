@@ -15,6 +15,10 @@
 
 #include <ros/ros.h>
 
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseArray.h>
+#include <std_msgs/Float64.h>
+
 using namespace openjaus;
 
 void printMenu();
@@ -32,11 +36,33 @@ bool processReportTimeout(core_v1_1::ReportTimeout &report);
 void processControlResponse(const model::ControlResponse &response);
 void processEventRequestResponse(const model::EventRequestResponseArgs &response);
 
+void localPoseCallback(const geometry_msgs::Pose::ConstPtr &msg);
+void waypointCallback(const geometry_msgs::Pose::ConstPtr &msg);
+void waypointListCallback(const geometry_msgs::PoseArray::ConstPtr &msg);
+void maxSpeedCallback(const std_msgs::Float64::ConstPtr &msg);
+
 static bool mainRunning = false;
+
+geometry_msgs::Pose localPose;
+geometry_msgs::Pose waypoint;
+geometry_msgs::PoseArray waypointList;
+double maxSpeed = 0.0;
 
 int main(int argc, char **argv) {
 
   ros::init(argc, argv, "cvt_node");
+
+  ros::NodeHandle nh;
+
+  auto localPoseSub = nh.subscribe<geometry_msgs::Pose>("CVT/local_pose", 1, localPoseCallback);
+  auto waypointSub = nh.subscribe<geometry_msgs::Pose>("CVT/waypoint", 1, waypointCallback);
+  auto waypointListSub = nh.subscribe<geometry_msgs::PoseArray>("CVT/waypoint_list", 1, waypointListCallback);
+  auto maxSpeedSub = nh.subscribe<std_msgs::Float64>("CVT/max_speed", 1, maxSpeedCallback);
+
+  std::cout << "LISTENING ON TOPIC '/CVT/local_pose' FOR LOCAL POSE" << std::endl;
+  std::cout << "LISTENING ON TOPIC '/CVT/waypoint' FOR WAYPOINT" << std::endl;
+  std::cout << "LISTENING ON TOPIC '/CVT/waypoint_list' FOR WAYPOINT LIST" << std::endl;
+  std::cout << "LISTENING ON TOPIC '/CVT/max_speed' FOR MAX SPEED" << std::endl;
 
   std::vector<transport::Address> cmp_list;
   uint32_t periodicSubscriptionId = 0;
@@ -169,14 +195,14 @@ int main(int argc, char **argv) {
 
         case '5': // Set Local Pose
         {
-          std::cout << "Sending Set Local Pose (X: 0, Y: 0)\n" << std::endl;
+          std::cout << "Sending Set Local Pose (X: " << localPose.position.x << ", Y: " << localPose.position.y << ")\n";
           auto *setPose = new mobility_v1_0::SetLocalPose();
 
           setPose->enableX();
-          setPose->setX_m(0.0);
+          setPose->setX_m(localPose.position.x);
 
           setPose->enableY();
-          setPose->setY_m(0.0);
+          setPose->setY_m(localPose.position.y);
 
           sendMessage(component, cmp_list, setPose);
           break;
@@ -184,11 +210,11 @@ int main(int argc, char **argv) {
 
         case '6': // Set Local Waypoint
         {
-          std::cout << "Sending Set Local Waypoint (X: 4, Y: 0)" << std::endl;
+          std::cout << "Sending Set Local Waypoint (X: " << waypoint.position.x << ", Y: " << waypoint.position.y << ")\n";
           auto *setWaypoint = new mobility_v1_0::SetLocalWaypoint();
 
-          setWaypoint->setX_m(4.0);
-          setWaypoint->setY_m(0.0);
+          setWaypoint->setX_m(waypoint.position.x);
+          setWaypoint->setY_m(waypoint.position.y);
 
           sendMessage(component, cmp_list, setWaypoint);
           break;
@@ -196,10 +222,10 @@ int main(int argc, char **argv) {
 
         case '7': // Set Travel Speed
         {
-          std::cout << "Sending Set Travel Speed (speed: 0.5 m/s)" << std::endl;
+          std::cout << "Sending Set Travel Speed (speed: " << maxSpeed <<" m/s)" << std::endl;
           auto *setSpeed = new mobility_v1_0::SetTravelSpeed();
 
-          setSpeed->setSpeed_mps(0.5);
+          setSpeed->setSpeed_mps(maxSpeed);
 
           sendMessage(component, cmp_list, setSpeed);
           break;
@@ -383,7 +409,14 @@ int main(int argc, char **argv) {
           }
           break;
         }
+
+        default:
+        {
+          ros::spinOnce();
+          break;
+        }
       }
+      ros::spinOnce();
     }
 
     std::cout << "Shutting Down...\n";
@@ -430,7 +463,8 @@ void printMenu() {
   std::cout << "# - Create Periodic Report Heartbeat Pulse Event (1 hz)\n";
   std::cout << "$ - Create Periodic Report Status Event (1 hz)\n";
   std::cout << "% - Create Periodic Report Control Event (1 hz)\n";
-  std::cout << "^ - Cancel Periodic Event\n";
+  std::cout << "^ - Cancel Periodic Event\n\n";
+  std::cout << "> - Load data from ROS topics\n";
   std::cout << "ESC - Exit Component\n";
 }
 
@@ -536,4 +570,21 @@ void processEventRequestResponse(const model::EventRequestResponseArgs &response
   std::cout << "Message Requested: 0x" << std::hex << response.getQueryId() << std::endl;
   std::cout << "Response: " << response.getResponseType() << std::endl;
   std::cout << "---------------------------" << std::endl;
+}
+
+void localPoseCallback(const geometry_msgs::Pose::ConstPtr &msg) {
+  localPose = *msg;
+}
+
+void waypointCallback(const geometry_msgs::Pose::ConstPtr &msg) {
+  ROS_INFO("Got waypoint!");
+  waypoint = *msg;
+}
+
+void waypointListCallback(const geometry_msgs::PoseArray::ConstPtr &msg) {
+  waypointList = *msg;
+}
+
+void maxSpeedCallback(const std_msgs::Float64::ConstPtr &msg) {
+  maxSpeed = msg->data;
 }

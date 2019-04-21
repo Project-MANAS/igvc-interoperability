@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
         tf2_geometry_msgs
         geometry_msgs
         nav_msgs
+        std_msgs
         robot_localization
         dwa_local_planner
         waypoint_server
@@ -22,6 +23,7 @@ catkin_package(CATKIN_DEPENDS
         tf2_geometry_msgs
         geometry_msgs
         nav_msgs
+        std_msgs
         robot_localization
         dwa_local_planner
         waypoint_server
@@ -41,6 +43,7 @@ link_directories(
 )
 
 add_library(${PROJECT_NAME}
+        src/WaypointListManager.cpp
         src/NavigationAndReportingComponent.cpp
 )
 
