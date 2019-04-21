@@ -428,7 +428,7 @@ void printMenu() {
   std::cout << "Listening on topic [/CVT/max_speed] for max speed\n\n";
   std::cout << "Menu:\n\n";
   std::cout << "  t - Print System Tree\n";
-  std::cout << "  f - Find Primitive Driver\n\n";
+  std::cout << "  f - Find Subsystem\n\n";
   std::cout << "  Access Control Service\n";
   std::cout << "  i - Request Control\n";
   std::cout << "  o - Release Control\n";
