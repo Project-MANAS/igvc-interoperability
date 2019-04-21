@@ -59,11 +59,6 @@ int main(int argc, char **argv) {
   auto waypointListSub = nh.subscribe<geometry_msgs::PoseArray>("CVT/waypoint_list", 1, waypointListCallback);
   auto maxSpeedSub = nh.subscribe<std_msgs::Float64>("CVT/max_speed", 1, maxSpeedCallback);
 
-  std::cout << "LISTENING ON TOPIC '/CVT/local_pose' FOR LOCAL POSE" << std::endl;
-  std::cout << "LISTENING ON TOPIC '/CVT/waypoint' FOR WAYPOINT" << std::endl;
-  std::cout << "LISTENING ON TOPIC '/CVT/waypoint_list' FOR WAYPOINT LIST" << std::endl;
-  std::cout << "LISTENING ON TOPIC '/CVT/max_speed' FOR MAX SPEED" << std::endl;
-
   std::vector<transport::Address> cmp_list;
   uint32_t periodicSubscriptionId = 0;
 
@@ -82,12 +77,10 @@ int main(int argc, char **argv) {
 
     system::Application::setTerminalMode();
 
-    std::cout << "Conformance Verification Tool" << std::endl;
-
-    printMenu();
-
     signal(SIGTERM, signalHandler);
     signal(SIGINT, signalHandler);
+
+    printMenu();
 
     component.run();
 
@@ -97,15 +90,10 @@ int main(int argc, char **argv) {
     while (mainRunning) // ESC
     {
       choice = system::Application::getChar();
+      printMenu();
       switch (choice) {
         case system::Application::ASCII_ESC: {
           mainRunning = false;
-          break;
-        }
-
-        case '?': // Print Menu
-        {
-          printMenu();
           break;
         }
 
@@ -432,55 +420,57 @@ int main(int argc, char **argv) {
 }
 
 void printMenu() {
-  std::cout << "Menu:\n";
-  std::cout << "? - Print Menu\n";
-  std::cout << "t - Print System Tree\n";
-  std::cout << "f - Find Primitive Driver\n";
-  std::cout << "Access Control Service\n";
-  std::cout << "i - Request Control\n";
-  std::cout << "o - Release Control\n";
-  std::cout << "p - Query Access Control Timeout\n";
-  std::cout << "Management Service\n";
-  std::cout << "j - Query Status\n";
-  std::cout << "k - Reset\n";
-  std::cout << "l - Resume\n";
-  std::cout << "v - Set Emergency\n";
-  std::cout << "b - Clear Emergency\n";
-  std::cout << "n - Shutdown\n";
-  std::cout << "m - Standby\n";
-  std::cout << "Services\n";
-  std::cout << "1 - Query Local Pose\n";
-  std::cout << "2 - Query Velocity State\n";
-  std::cout << "3 - Query Travel Speed\n";
-  std::cout << "4 - Query Local Waypoint\n";
-  std::cout << "5 - Set Local Pose\n";
-  std::cout << "6 - Set Local Waypoint\n";
-  std::cout << "7 - Set Travel Speed\n";
-  std::cout << "w a s d - Set Wrench Effort\n";
-  std::cout << "Event Services\n";
-  std::cout << "! - Create Periodic Report Local Pose Event (1 hz)\n";
-  std::cout << "@ - Create Periodic Report Velocity State Event (1 hz)\n";
-  std::cout << "# - Create Periodic Report Heartbeat Pulse Event (1 hz)\n";
-  std::cout << "$ - Create Periodic Report Status Event (1 hz)\n";
-  std::cout << "% - Create Periodic Report Control Event (1 hz)\n";
-  std::cout << "^ - Cancel Periodic Event\n\n";
-  std::cout << "> - Load data from ROS topics\n";
-  std::cout << "ESC - Exit Component\n";
+  std::system("clear");
+  std::cout << "Conformance Verification Tool\n\n";
+  std::cout << "Listening on topic [/CVT/local_pose] for local pose" << std::endl;
+  std::cout << "Listening on topic [/CVT/waypoint] for waypoint" << std::endl;
+  std::cout << "Listening on topic [/CVT/waypoint_list] for waypoint list" << std::endl;
+  std::cout << "Listening on topic [/CVT/max_speed] for max speed\n\n";
+  std::cout << "Menu:\n\n";
+  std::cout << "  t - Print System Tree\n";
+  std::cout << "  f - Find Primitive Driver\n\n";
+  std::cout << "  Access Control Service\n";
+  std::cout << "  i - Request Control\n";
+  std::cout << "  o - Release Control\n";
+  std::cout << "  p - Query Access Control Timeout\n\n";
+  std::cout << "  Management Service\n";
+  std::cout << "  j - Query Status\n";
+  std::cout << "  k - Reset\n";
+  std::cout << "  l - Resume\n";
+  std::cout << "  v - Set Emergency\n";
+  std::cout << "  b - Clear Emergency\n";
+  std::cout << "  n - Shutdown\n";
+  std::cout << "  m - Standby\n\n";
+  std::cout << "  Services\n";
+  std::cout << "  1 - Query Local Pose\n";
+  std::cout << "  2 - Query Velocity State\n";
+  std::cout << "  3 - Query Travel Speed\n";
+  std::cout << "  4 - Query Local Waypoint\n";
+  std::cout << "  5 - Set Local Pose\n";
+  std::cout << "  6 - Set Local Waypoint\n";
+  std::cout << "  7 - Set Travel Speed\n";
+  std::cout << "  w a s d - Set Wrench Effort\n\n";
+  std::cout << "  Event Services\n";
+  std::cout << "  ! - Create Periodic Report Local Pose Event (1 hz)\n";
+  std::cout << "  @ - Create Periodic Report Velocity State Event (1 hz)\n";
+  std::cout << "  # - Create Periodic Report Heartbeat Pulse Event (1 hz)\n";
+  std::cout << "  $ - Create Periodic Report Status Event (1 hz)\n";
+  std::cout << "  % - Create Periodic Report Control Event (1 hz)\n";
+  std::cout << "  ^ - Cancel Periodic Event\n\n";
+  std::cout << "  > - Load data from ROS topics\n";
+  std::cout << "  ESC - Exit Component\n\n\n";
 }
 
-// NOTE: You MUST pass the component by reference if you choose this pattern
-// otherwise you will run into problems.
 void sendMessage(core_v1_1::Base &component, const std::vector<transport::Address> &cmp_list, model::Message *message) {
   if (!cmp_list.empty()) {
     message->setDestination(cmp_list.at(0));
     component.sendMessage(message);
   } else {
-    std::cout << "No known component! You need to find one first." << std::endl;
+    std::cout << "No known component! You need to find one first.\r";
   }
 }
 
 void signalHandler(int n) {
-  // Got Signal, shutdown gracefully
   std::cout << "Got Signal, shutdown gracefully" << std::endl;
   mainRunning = false;
 }
@@ -494,7 +484,8 @@ bool processReportLocalPose(mobility_v1_0::ReportLocalPose &report) {
   std::cout << "Roll: " << report.getRoll_rad() << std::endl;
   std::cout << "Pitch: " << report.getPitch_rad() << std::endl;
   std::cout << "Yaw: " << report.getYaw_rad() << std::endl;
-  std::cout << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  std::cout << "\x1b[9A";
   return true;
 }
 
@@ -507,6 +498,7 @@ bool processReportVelocityState(mobility_v1_0::ReportVelocityState &report) {
   std::cout << "Angular X: " << report.getRollRate_rps() << std::endl;
   std::cout << "Angular Y: " << report.getPitchRate_rps() << std::endl;
   std::cout << "Angular Z: " << report.getYawRate_rps() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
   std::cout << std::endl;
   return true;
 }
@@ -515,6 +507,7 @@ bool processReportTravelSpeed(mobility_v1_0::ReportTravelSpeed &report) {
   std::cout << "Received Report Travel Speed" << std::endl;
   std::cout << "-----------------------------" << std::endl;
   std::cout << "Speed: " << report.getSpeed_mps() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
   std::cout << std::endl;
   return true;
 }
@@ -528,14 +521,16 @@ bool processReportLocalWaypoint(mobility_v1_0::ReportLocalWaypoint &report) {
   std::cout << "Roll: " << report.getRoll_rad() << std::endl;
   std::cout << "Pitch: " << report.getPitch_rad() << std::endl;
   std::cout << "Yaw: " << report.getYaw_rad() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
   std::cout << std::endl;
   return true;
 }
 
 bool processReportStatus(core_v1_1::ReportStatus &report) {
-  std::cout << "Recv Report Status from: " << report.getSource() << std::endl;
+  std::cout << "Received Report Status from: " << report.getSource() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
   std::cout << "Status: " << report.getStatusToString() << std::endl;
-
+  std::cout << "-----------------------------" << std::endl;
   return true;
 }
 
@@ -546,9 +541,11 @@ bool processReportHeartbeatPulse(core_v1_1::ReportHeartbeatPulse &report) {
 
 bool processReportControl(core_v1_1::ReportControl &report) {
   std::cout << "Recveived Report Control from: " << report.getSource() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
   std::cout << "SubsystemID: " << report.getSubsystemID() << std::endl;
   std::cout << "NodeID: " << report.getNodeID() << std::endl;
   std::cout << "ComponentID: " << report.getComponentID() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
   return true;
 }
 
@@ -559,7 +556,7 @@ bool processReportTimeout(core_v1_1::ReportTimeout &report) {
 }
 
 void processControlResponse(const model::ControlResponse &response) {
-  std::cout << "Recv Control Request Response from: " << response.getAddress() << std::endl;
+  std::cout << "Received Control Request Response from: " << response.getAddress() << std::endl;
   std::cout << "Response code: " << response.getResponseType() << std::endl;
 }
 
@@ -577,7 +574,6 @@ void localPoseCallback(const geometry_msgs::Pose::ConstPtr &msg) {
 }
 
 void waypointCallback(const geometry_msgs::Pose::ConstPtr &msg) {
-  ROS_INFO("Got waypoint!");
   waypoint = *msg;
 }
 
