@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
 
           std::cout << "List size: " << setElement->getElementList().getElementRec().size() << std::endl;
           for (auto &e : setElement->getElementList().getElementRec())
-            std::cout << "UID: " << e.getElementUID() << "\tPrevious UID: " << e.getPreviousUID() << "\tNext UID: " << e.getNextUID() << std::endl;
+            std::cout << "UID: " << e.getElementUID() << "\tPrevious UID: " << e.getPreviousUID() << "\tNext UID: " << e.getNextUID() << std::endl << std::endl;
 
           sendMessage(component, cmp_list, setElement);
           break;
@@ -486,6 +486,7 @@ int main(int argc, char **argv) {
         default:
         {
           ros::spinOnce();
+          std::cout << "Loaded data from ROS topics!" << std::endl;
           break;
         }
       }
@@ -615,7 +616,7 @@ bool processReportLocalWaypoint(mobility_v1_0::ReportLocalWaypoint &report) {
 bool processConfirmElementRequest(mobility_v1_0::ConfirmElementRequest &report) {
   std::cout << "Received Confirm Element Request" << std::endl;
   std::cout << "-----------------------------" << std::endl;
-  std::cout << "Request ID: " << report.getRequestID() << std::endl;
+  std::cout << "Request ID: " << int(report.getRequestID()) << std::endl;
   std::cout << "-----------------------------" << std::endl;
   return true;
 }
@@ -623,7 +624,7 @@ bool processConfirmElementRequest(mobility_v1_0::ConfirmElementRequest &report) 
 bool processRejectElementRequest(mobility_v1_0::RejectElementRequest &report) {
   std::cout << "Received Reject Element Request" << std::endl;
   std::cout << "-----------------------------" << std::endl;
-  std::cout << "Request ID: " << report.getRequestID() << std::endl;
+  std::cout << "Request ID: " << int(report.getRequestID()) << std::endl;
   std::cout << "Response Code: " << report.getRejectElementResponseCodeToString() << std::endl;
   std::cout << "-----------------------------" << std::endl;
   return true;
@@ -632,7 +633,7 @@ bool processRejectElementRequest(mobility_v1_0::RejectElementRequest &report) {
 bool processReportActiveElement(mobility_v1_0::ReportActiveElement &report) {
   std::cout << "Received Report Active Element" << std::endl;
   std::cout << "-----------------------------" << std::endl;
-  std::cout << "Element UID: " << report.getElementUID() << std::endl;
+  std::cout << "Element UID: " << int(report.getElementUID()) << std::endl;
   std::cout << "-----------------------------" << std::endl;
   return true;
 }
@@ -641,7 +642,7 @@ bool processReportElementList(mobility_v1_0::ReportElementList &report) {
   std::cout << "Received Report Element List" << std::endl;
   std::cout << "-----------------------------" << std::endl;
   for (auto &l: report.getElementIdList().getElementUID())
-    std::cout << "Element UID: " << l << std::endl;
+    std::cout << "Element UID: " << int(l.getValue()) << std::endl;
   std::cout << "-----------------------------" << std::endl;
   return true;
 }
