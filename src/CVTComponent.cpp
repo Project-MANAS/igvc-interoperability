@@ -29,6 +29,12 @@ bool processReportLocalPose(mobility_v1_0::ReportLocalPose &report);
 bool processReportVelocityState(mobility_v1_0::ReportVelocityState &report);
 bool processReportLocalWaypoint(mobility_v1_0::ReportLocalWaypoint &report);
 bool processReportTravelSpeed(mobility_v1_0::ReportTravelSpeed &report);
+bool processConfirmElementRequest(mobility_v1_0::ConfirmElementRequest &report);
+bool processRejectElementRequest(mobility_v1_0::RejectElementRequest &report);
+bool processReportActiveElement(mobility_v1_0::ReportActiveElement &report);
+bool processReportElementList(mobility_v1_0::ReportElementList &report);
+bool processReportElementCount(mobility_v1_0::ReportElementCount &report);
+
 bool processReportStatus(core_v1_1::ReportStatus &report);
 bool processReportHeartbeatPulse(core_v1_1::ReportHeartbeatPulse &report);
 bool processReportControl(core_v1_1::ReportControl &report);
@@ -74,6 +80,11 @@ int main(int argc, char **argv) {
     component.addMessageCallback(processReportLocalWaypoint);
     component.addMessageCallback(processReportTravelSpeed);
     component.addMessageCallback(processReportVelocityState);
+    component.addMessageCallback(processConfirmElementRequest);
+    component.addMessageCallback(processRejectElementRequest);
+    component.addMessageCallback(processReportActiveElement);
+    component.addMessageCallback(processReportElementCount);
+    component.addMessageCallback(processReportElementList);
 
     system::Application::setTerminalMode();
 
@@ -216,6 +227,80 @@ int main(int argc, char **argv) {
           setSpeed->setSpeed_mps(maxSpeed);
 
           sendMessage(component, cmp_list, setSpeed);
+          break;
+        }
+
+        case '8': // Set Element
+        {
+          std::cout << "Sending Waypoint List Element:" << std::endl;
+
+          auto *setElement = new mobility_v1_0::SetElement();
+
+          setElement->setRequestID(1);
+
+          for (int i=0; i<waypointList.poses.size(); i++) {
+            mobility_v1_0::ElementRecord e;
+            mobility_v1_0::SetLocalWaypoint wp;
+            wp.setX_m(waypointList.poses[i].position.x);
+            wp.setY_m(waypointList.poses[i].position.y);
+            e.setElementData(&wp);
+            e.setElementUID(uint16_t(i+1));
+            if (i == 0)
+              e.setPreviousUID(0);
+            else
+              e.setPreviousUID(uint16_t(i));
+            if (i == waypointList.poses.size() - 1)
+              e.setNextUID(0);
+            else
+              e.setNextUID(uint16_t(i+2));
+            setElement->getElementList().add(e);
+          }
+
+          std::cout << "List size: " << setElement->getElementList().getElementRec().size() << std::endl;
+          for (auto &e : setElement->getElementList().getElementRec())
+            std::cout << "UID: " << e.getElementUID() << "\tPrevious UID: " << e.getPreviousUID() << "\tNext UID: " << e.getNextUID() << std::endl;
+
+          sendMessage(component, cmp_list, setElement);
+          break;
+        }
+
+        case '9': // Execute List
+        {
+          std::cout << "Sending Execute List:"<< std::endl << "Enter UID (0-9): " << std::endl;
+          auto *executeList = new mobility_v1_0::ExecuteList();
+
+          uint16_t uid = system::Application::getChar() - '0';
+          std::cout << "Element UID: " << uid << std::endl;
+          std::cout << "Max Speed: " << maxSpeed << " m/s" << std::endl;
+
+          executeList->setElementUID(uid);
+          executeList->setSpeed_mps(maxSpeed);
+
+          sendMessage(component, cmp_list, executeList);
+          break;
+        }
+
+        case '0': // Query Element List
+        {
+          std::cout << "Sending Query Element List" << std::endl;
+          auto *elementList = new mobility_v1_0::QueryElementList;
+          sendMessage(component, cmp_list, elementList);
+          break;
+        }
+
+        case '&': // Query Element Count
+        {
+          std::cout << "Sending Query Element Count" << std::endl;
+          auto *elementCount = new mobility_v1_0::QueryElementCount();
+          sendMessage(component, cmp_list, elementCount);
+          break;
+        }
+
+        case '*': // Query Active Element
+        {
+          std::cout << "Sending Query Active Element" << std::endl;
+          auto *activeElement = new mobility_v1_0::QueryActiveElement();
+          sendMessage(component, cmp_list, activeElement);
           break;
         }
 
@@ -449,6 +534,11 @@ void printMenu() {
   std::cout << "  5 - Set Local Pose\n";
   std::cout << "  6 - Set Local Waypoint\n";
   std::cout << "  7 - Set Travel Speed\n";
+  std::cout << "  8 - Set Waypoint List Element\n";
+  std::cout << "  9 - Execute Waypoint List\n";
+  std::cout << "  0 - Query Element List\n";
+  std::cout << "  & - Query Element Count\n";
+  std::cout << "  * - Query Active Element\n";
   std::cout << "  w a s d - Set Wrench Effort\n\n";
   std::cout << "  Event Services\n";
   std::cout << "  ! - Create Periodic Report Local Pose Event (1 hz)\n";
@@ -466,7 +556,7 @@ void sendMessage(core_v1_1::Base &component, const std::vector<transport::Addres
     message->setDestination(cmp_list.at(0));
     component.sendMessage(message);
   } else {
-    std::cout << "No known component! You need to find one first.\r";
+    std::cout << "No known component! You need to find one first.";
   }
 }
 
@@ -485,7 +575,6 @@ bool processReportLocalPose(mobility_v1_0::ReportLocalPose &report) {
   std::cout << "Pitch: " << report.getPitch_rad() << std::endl;
   std::cout << "Yaw: " << report.getYaw_rad() << std::endl;
   std::cout << "-----------------------------" << std::endl;
-  std::cout << "\x1b[9A";
   return true;
 }
 
@@ -499,7 +588,6 @@ bool processReportVelocityState(mobility_v1_0::ReportVelocityState &report) {
   std::cout << "Angular Y: " << report.getPitchRate_rps() << std::endl;
   std::cout << "Angular Z: " << report.getYawRate_rps() << std::endl;
   std::cout << "-----------------------------" << std::endl;
-  std::cout << std::endl;
   return true;
 }
 
@@ -508,7 +596,6 @@ bool processReportTravelSpeed(mobility_v1_0::ReportTravelSpeed &report) {
   std::cout << "-----------------------------" << std::endl;
   std::cout << "Speed: " << report.getSpeed_mps() << std::endl;
   std::cout << "-----------------------------" << std::endl;
-  std::cout << std::endl;
   return true;
 }
 
@@ -522,9 +609,51 @@ bool processReportLocalWaypoint(mobility_v1_0::ReportLocalWaypoint &report) {
   std::cout << "Pitch: " << report.getPitch_rad() << std::endl;
   std::cout << "Yaw: " << report.getYaw_rad() << std::endl;
   std::cout << "-----------------------------" << std::endl;
-  std::cout << std::endl;
   return true;
 }
+
+bool processConfirmElementRequest(mobility_v1_0::ConfirmElementRequest &report) {
+  std::cout << "Received Confirm Element Request" << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  std::cout << "Request ID: " << report.getRequestID() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  return true;
+}
+
+bool processRejectElementRequest(mobility_v1_0::RejectElementRequest &report) {
+  std::cout << "Received Reject Element Request" << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  std::cout << "Request ID: " << report.getRequestID() << std::endl;
+  std::cout << "Response Code: " << report.getRejectElementResponseCodeToString() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  return true;
+}
+
+bool processReportActiveElement(mobility_v1_0::ReportActiveElement &report) {
+  std::cout << "Received Report Active Element" << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  std::cout << "Element UID: " << report.getElementUID() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  return true;
+}
+
+bool processReportElementList(mobility_v1_0::ReportElementList &report) {
+  std::cout << "Received Report Element List" << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  for (auto &l: report.getElementIdList().getElementUID())
+    std::cout << "Element UID: " << l << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  return true;
+}
+
+bool processReportElementCount(mobility_v1_0::ReportElementCount &report) {
+  std::cout << "Received Report Element Count" << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  std::cout << "Count: " << report.getElementCount() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  return true;
+}
+
 
 bool processReportStatus(core_v1_1::ReportStatus &report) {
   std::cout << "Received Report Status from: " << report.getSource() << std::endl;

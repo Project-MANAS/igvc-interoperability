@@ -14,6 +14,12 @@
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include <vector>
+#include <set>
+#include <memory>
+#include <string>
+
+
 NavigationAndReportingComponent::NavigationAndReportingComponent(const std::string &name)
     : Managed(name), private_node_("~"), tf_listener_(tf_buffer_) {
 
@@ -31,6 +37,11 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
 
   private_node_.param<std::string>("odom_topic", odom_topic_, "odom");
   odom_sub_ = node_.subscribe(odom_topic_, 1, &NavigationAndReportingComponent::velocityCallback, this);
+
+  ros::service::waitForService("move_base/DWAPlannerROS/set_max_vel", -1);
+  ros::service::waitForService("set_pose_waypoint", -1);
+  ros::service::waitForService("get_target_waypoint", -1);
+//  ros::service::waitForService("set_pose", -1);
 
   set_pose_client_ = node_.serviceClient<robot_localization::SetPose>("set_pose");
   set_max_vel_client_ = node_.serviceClient<dwa_local_planner::SetMaxVel>("move_base/DWAPlannerROS/set_max_vel");
@@ -164,30 +175,9 @@ void NavigationAndReportingComponent::resetLwdTravelSpeed() {
 }
 
 bool NavigationAndReportingComponent::setLocalWaypoint(openjaus::mobility_v1_0::SetLocalWaypoint *setLocalWaypoint) {
-
-  waypoint_server::SetPoseWaypoint srv;
-
-  srv.request.waypoint.header.frame_id = odom_topic_;
-  srv.request.waypoint.header.stamp = ros::Time::now();
-  srv.request.waypoint.pose.position.x = setLocalWaypoint->getX_m();
-  srv.request.waypoint.pose.position.y = -setLocalWaypoint->getY_m();
-  srv.request.mode = 2;
-
-  if (is_emergency_ || !is_ready_)
-    setMaxVelocity(0.0);
-  else
-    setMaxVelocity(max_vel_);
-
-  if (set_local_waypoint_client_.call(srv))
-    ROS_INFO("Local waypoint was set to (X: %lf, Y: %lf)",
-             srv.request.waypoint.pose.position.x,
-             srv.request.waypoint.pose.position.y);
-  else {
-    ROS_ERROR("Failed to call service 'set_pose_waypoint' in waypoint_server package");
-    return false;
-  }
-
-  return true;
+  double x = setLocalWaypoint->getX_m();
+  double y = -setLocalWaypoint->getY_m();
+  return setWaypoint(x, y, 2);
 }
 
 bool NavigationAndReportingComponent::setLwdTravelSpeed(openjaus::mobility_v1_0::SetTravelSpeed *setTravelSpeed) {
@@ -266,53 +256,102 @@ void NavigationAndReportingComponent::resetLwldTravelSpeed() {
   setMaxVelocity(0.0);
 }
 
-bool NavigationAndReportingComponent::setLocalWaypointElement(openjaus::mobility_v1_0::SetElement *setElement) {
-  element_list_.push_back(setElement->getElementList());
-  return true;
-}
-
 bool NavigationAndReportingComponent::executeLocalWaypointList(openjaus::mobility_v1_0::ExecuteList *executeList) {
+  ROS_INFO("Recieved Exectue Local Waypoint List");
+  waypoint_list_.resetError();
+  uint16_t start_uid = executeList->getElementUID();
+
+  if (waypoint_list_.getActiveElement() != 0) {
+    setWaypoint(0.0, 0.0, 3);
+    waypoint_list_.setActiveElement(0);
+  }
+
+  std::vector<openjaus::mobility_v1_0::ElementRecord> result;
+  openjaus::mobility_v1_0::ElementRecord el;
+  el = waypoint_list_.getElement(start_uid);
+
+  if (start_uid == 0) {
+    start_uid = el.getElementUID();
+  }
+  if (el.getElementUID() == 0) {
+    waypoint_list_.setError(openjaus::mobility_v1_0::RejectElementResponseCodeEnumeration::ELEMENT_NOT_FOUND);
+    return false;
+  }
+  while (true) {
+    result.push_back(el);
+    el = waypoint_list_.getElement(el.getNextUID());
+    if (el.getNextUID() == start_uid) {
+      break;
+    } else if (el.getNextUID() == 0) {
+      result.push_back(el);
+      break;
+    }
+  }
+
+  if (result.empty()) {
+    waypoint_list_.setActiveElement(0);
+    setWaypoint(0.0, 0.0, 3);
+  }
+
+  std::vector<openjaus::mobility_v1_0::ElementRecord>::iterator it;
+  openjaus::mobility_v1_0::SetLocalWaypoint* wp;
+  double x, y;
+
+  for (it = result.begin(); it != result.end(); ++it) {
+    if (it == result.begin())
+      waypoint_list_.setActiveElement(it->getElementUID());
+    wp = new openjaus::mobility_v1_0::SetLocalWaypoint{it->getElementData()};
+    x = wp->getX_m();
+    y = -wp->getY_m();
+    setWaypoint(x, y, 0);
+  }
+
+  max_vel_ = executeList->getSpeed_mps();
+  setMaxVelocity(max_vel_);
+
   return true;
 }
 
 bool NavigationAndReportingComponent::modifyLwldTravelSpeed(openjaus::mobility_v1_0::ExecuteList *executeList) {
+  ROS_INFO("Recieved Set Local Waypoint Element, modifying speed!");
   max_vel_ = executeList->getSpeed_mps();
-  setMaxVelocity(max_vel_);
-  return true;
+  return setMaxVelocity(max_vel_);
 }
 
 openjaus::mobility_v1_0::ReportActiveElement NavigationAndReportingComponent::getReportActiveElement(openjaus::mobility_v1_0::QueryActiveElement *queryActiveElement) {
+  ROS_INFO("Recieved Query Active Element");
   openjaus::mobility_v1_0::ReportActiveElement activeElement;
-  activeElement.setElementUID(current_element_.getElementRec().data()->getElementUID());
+  activeElement.setElementUID(waypoint_list_.getActiveElement());
   return activeElement;
 }
 
 openjaus::mobility_v1_0::ConfirmElementRequest NavigationAndReportingComponent::getConfirmElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
+  ROS_INFO("Sending confirm element request");
   openjaus::mobility_v1_0::ConfirmElementRequest elementRequest;
   elementRequest.setRequestID(setElement->getRequestID());
   return elementRequest;
 }
 
 openjaus::mobility_v1_0::RejectElementRequest NavigationAndReportingComponent::getRejectElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
+  ROS_INFO("Sending reject element request");
   openjaus::mobility_v1_0::RejectElementRequest elementRequest;
+  elementRequest.setRequestID(setElement->getRequestID());
+  elementRequest.setRejectElementResponseCode(waypoint_list_.getError());
   return elementRequest;
 }
 
 bool NavigationAndReportingComponent::lwldWaypointExists(openjaus::mobility_v1_0::QueryLocalWaypoint *queryLocalWaypoint) {
-
-  return true;
+  waypoint_server::QueryTargetWaypoint srv;
+  if (get_local_waypoint_client_.call(srv)) {
+    if (!srv.response.status)
+      waypoint_list_.setActiveElement(0);
+    return srv.response.status;
+  }
+  return false;
 }
 
 bool NavigationAndReportingComponent::lwldElementExists(openjaus::mobility_v1_0::ExecuteList *executeList) {
-  return true;
-}
-
-bool NavigationAndReportingComponent::isValidLwldElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
-  return true;
-}
-
-bool NavigationAndReportingComponent::isLwldElementSupported(openjaus::mobility_v1_0::SetElement *setElement) {
-  return true;
+  return waypoint_list_.elementExists(executeList->getElementUID());
 }
 
 bool NavigationAndReportingComponent::lwldElementSpecified(openjaus::model::Trigger *trigger) {
@@ -322,16 +361,85 @@ bool NavigationAndReportingComponent::lwldElementSpecified(openjaus::model::Trig
 
 // LIST MANAGER FUNCTIONS
 
+bool NavigationAndReportingComponent::setElement(openjaus::mobility_v1_0::SetElement *setElement) {
+  ROS_INFO("Recieved Set Local Waypoint Element");
+  for (auto &l: setElement->getElementList().getElementRec())
+    ROS_INFO("UID: %d\t\tPrevious UID: %d\t\tNext UID: %d", l.getElementUID(), l.getPreviousUID(), l.getNextUID());
+  return waypoint_list_.setElement(setElement->getElementList());
+}
+
 openjaus::mobility_v1_0::ReportElementList NavigationAndReportingComponent::getReportElementList(openjaus::mobility_v1_0::QueryElementList *queryElementList) {
+  ROS_INFO("Recieved Query Element List");
   openjaus::mobility_v1_0::ReportElementList elementList;
+  openjaus::model::fields::UnsignedShort uid;
+  for (auto &l : waypoint_list_.getList()) {
+    uid.setValue(l.getElementUID());
+    elementList.getElementIdList().add(uid);
+  }
   return elementList;
 }
 
 openjaus::mobility_v1_0::ReportElementCount NavigationAndReportingComponent::getReportElementCount(openjaus::mobility_v1_0::QueryElementCount *queryElementCount) {
+  ROS_INFO("Recieved Query Element Count");
   openjaus::mobility_v1_0::ReportElementCount elementCount;
-
-
+  elementCount.setElementCount(uint16_t(waypoint_list_.getList().size()));
   return elementCount;
+}
+
+bool NavigationAndReportingComponent::isValidElementRequest(openjaus::mobility_v1_0::SetElement *setElement) {
+  waypoint_list_.resetError();
+  std::set<uint16_t> new_ids;
+  uint16_t uid;
+  auto new_list = setElement->getElementList().getElementRec();
+
+  if (new_list.empty()) {
+    waypoint_list_.setError(openjaus::mobility_v1_0::RejectElementResponseCodeEnumeration::ELEMENT_NOT_FOUND);
+    return false;
+  }
+
+  for (auto &l : new_list) {
+    uid = l.getElementUID();
+    if (uid == 0 || uid == 65535) {
+      waypoint_list_.setError(openjaus::mobility_v1_0::RejectElementResponseCodeEnumeration::INVALID_UID);
+      return false;
+    }
+    new_ids.insert(uid);
+    uid = l.getPreviousUID();
+    if (uid != 0 && uid != 65535) {
+      if (new_ids.find(uid) == new_ids.end()) {
+        if (!waypoint_list_.elementExists(uid)) {
+          waypoint_list_.setError(openjaus::mobility_v1_0::RejectElementResponseCodeEnumeration::INVALID_PREVIOUS);
+          return false;
+        }
+      }
+    }
+  }
+
+  for (auto &l : new_list) {
+    uid = l.getNextUID();
+    if (uid != 0 && uid != 65535) {
+      if (new_ids.find(uid) == new_ids.end()) {
+        if (!waypoint_list_.elementExists(uid)) {
+          waypoint_list_.setError(openjaus::mobility_v1_0::RejectElementResponseCodeEnumeration::INVALID_PREVIOUS);
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+bool NavigationAndReportingComponent::isElementSupported(openjaus::mobility_v1_0::SetElement *setElement) {
+  waypoint_list_.resetError();
+  auto new_list = setElement->getElementList().getElementRec();
+  for (auto &e : new_list) {
+    if (e.getElementData()->getId() != openjaus::mobility_v1_0::SetLocalWaypoint::ID) {
+      waypoint_list_.setError(openjaus::mobility_v1_0::RejectElementResponseCodeEnumeration::UNSUPPORTED_TYPE);
+      return false;
+    }
+  }
+  return true;
 }
 
 
@@ -372,6 +480,7 @@ openjaus::mobility_v1_0::ReportWrenchEffort NavigationAndReportingComponent::get
 void NavigationAndReportingComponent::onPushToEmergency() {
   ROS_INFO("Set Emergency!");
   is_emergency_ = true;
+  max_vel_ = 0.0;
   setMaxVelocity(0.0);
 }
 
@@ -398,17 +507,50 @@ void NavigationAndReportingComponent::onExitReady() {
 
 void NavigationAndReportingComponent::onEnterInit() {
   this->initialized();
+  max_vel_ = 0.0;
   ROS_INFO("Solo has been initialized!");
 }
 
+void NavigationAndReportingComponent::onEnterNotControlledStandby() {
+  ROS_INFO("No controlling client. Solo is in standby!");
+  setMaxVelocity(0.0);
+}
+
+void NavigationAndReportingComponent::onEnterControlledStandby() {
+  ROS_INFO("Solo is under control and in standby!");
+  setMaxVelocity(0.0);
+}
 
 void NavigationAndReportingComponent::velocityCallback(const nav_msgs::Odometry::ConstPtr &msg) {
   odom_msg_ = *msg;
 }
 
 bool NavigationAndReportingComponent::setMaxVelocity(double vel) {
-  dwa_local_planner::SetMaxVel mv_srv;
-  mv_srv.request.max_vel.data = vel;
-  ROS_INFO("Max travel speed was set to %lf m/s", vel);
-  return set_max_vel_client_.call(mv_srv);
+  dwa_local_planner::SetMaxVel srv;
+  srv.request.max_vel.data = vel;
+  if (set_max_vel_client_.call(srv))
+    ROS_INFO("Max travel speed was set to %lf m/s", vel);
+  else {
+    ROS_ERROR("Failed to call service 'move_base/DWAPlannerROS/set_max_vel' in dwa_local_planner package");
+    return false;
+  }
+  return true;
+}
+
+bool NavigationAndReportingComponent::setWaypoint(double x, double y, int mode) {
+  waypoint_server::SetPoseWaypoint srv;
+  srv.request.waypoint.header.frame_id = odom_topic_;
+  srv.request.waypoint.header.stamp = ros::Time::now();
+  srv.request.waypoint.pose.position.x = x;
+  srv.request.waypoint.pose.position.y = y;
+  srv.request.mode = mode;
+  if (set_local_waypoint_client_.call(srv))
+    ROS_INFO("Local waypoint was set to (X: %lf, Y: %lf)",
+             srv.request.waypoint.pose.position.x,
+             srv.request.waypoint.pose.position.y);
+  else {
+    ROS_ERROR("Failed to call service 'set_pose_waypoint' in waypoint_server package");
+    return false;
+  }
+  return true;
 }
