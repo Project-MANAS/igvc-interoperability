@@ -36,26 +36,31 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
   publish(openjaus::core::ReportControl::ID, -1.0, openjaus::model::ALL_EVENTS);
 
   private_node_.param<std::string>("odom_topic", odom_topic_, "odom");
-  odom_sub_ = node_.subscribe(odom_topic_, 1, &NavigationAndReportingComponent::velocityCallback, this);
+  private_node_.param<std::string>("cmd_vel_topic", cmd_vel_topic_, "cmd_vel");
+  private_node_.param<std::string>("set_pose_service", set_pose_srv_, "set_pose");
+  private_node_.param<std::string>("set_max_velocity_service", set_max_vel_srv_, "move_base/DWAPlannerROS/set_max_vel");
+  private_node_.param<std::string>("set_waypoint_service", set_waypoint_srv_, "set_pose_waypoint");
+  private_node_.param<std::string>("get_waypoint_service", get_waypoint_srv_, "get_target_waypoint");
+  private_node_.param("max_linear_x", max_linear_x_, 0.5);
+  private_node_.param("max_angular_z", max_angular_z_, 0.25);
 
-  ros::service::waitForService("move_base/DWAPlannerROS/set_max_vel", -1);
-  ros::service::waitForService("set_pose_waypoint", -1);
-  ros::service::waitForService("get_target_waypoint", -1);
-//  ros::service::waitForService("set_pose", -1);
+  ros::service::waitForService(set_max_vel_srv_, -1);
+  ros::service::waitForService(set_waypoint_srv_, -1);
+  ros::service::waitForService(get_waypoint_srv_, -1);
+  ros::service::waitForService(set_pose_srv_, -1);
 
-  set_pose_client_ = node_.serviceClient<robot_localization::SetPose>("set_pose");
-  set_max_vel_client_ = node_.serviceClient<dwa_local_planner::SetMaxVel>("move_base/DWAPlannerROS/set_max_vel");
-  set_local_waypoint_client_ = node_.serviceClient<waypoint_server::SetPoseWaypoint>("set_pose_waypoint");
-  get_local_waypoint_client_ = node_.serviceClient<waypoint_server::QueryTargetWaypoint>("get_target_waypoint");
+  set_pose_client_ = node_.serviceClient<robot_localization::SetPose>(set_pose_srv_);
+  set_max_vel_client_ = node_.serviceClient<dwa_local_planner::SetMaxVel>(set_max_vel_srv_);
+  set_local_waypoint_client_ = node_.serviceClient<waypoint_server::SetPoseWaypoint>(set_waypoint_srv_);
+  get_local_waypoint_client_ = node_.serviceClient<waypoint_server::QueryTargetWaypoint>(get_waypoint_srv_);
 
-  cmd_vel_pub_ = node_.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+  cmd_vel_pub_ = node_.advertise<geometry_msgs::Twist>(cmd_vel_topic_, 1);
 
   is_emergency_ = false;
   is_ready_ = false;
   max_vel_ = 0.0;
 
-  private_node_.param("max_linear_x", max_linear_x_, 0.5);
-  private_node_.param("max_angular_z", max_angular_z_, 0.25);
+  odom_sub_ = node_.subscribe(odom_topic_, 1, &NavigationAndReportingComponent::velocityCallback, this);
 
   this->run();
   this->initialized();

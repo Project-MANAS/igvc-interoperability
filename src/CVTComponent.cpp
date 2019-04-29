@@ -2,9 +2,9 @@
 // Created by naivehobo on 4/17/19.
 //
 
-#include "interoperability/CVTComponent.h"
-
 #include <signal.h>
+#include <string>
+
 #include "openjaus.h"
 #include "openjaus/core_v1_1/Base.h"
 #include "openjaus/mobility_v1_0/Services/VelocityStateSensor.h"
@@ -52,6 +52,12 @@ static bool mainRunning = false;
 geometry_msgs::Pose localPose;
 geometry_msgs::Pose waypoint;
 geometry_msgs::PoseArray waypointList;
+
+std::string pose_topic;
+std::string wp_topic;
+std::string wp_list_topic;
+std::string speed_topic;
+
 double maxSpeed = 0.0;
 
 int main(int argc, char **argv) {
@@ -59,11 +65,17 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "cvt_node");
 
   ros::NodeHandle nh;
+  ros::NodeHandle private_nh("~");
 
-  auto localPoseSub = nh.subscribe<geometry_msgs::Pose>("CVT/local_pose", 1, localPoseCallback);
-  auto waypointSub = nh.subscribe<geometry_msgs::Pose>("CVT/waypoint", 1, waypointCallback);
-  auto waypointListSub = nh.subscribe<geometry_msgs::PoseArray>("CVT/waypoint_list", 1, waypointListCallback);
-  auto maxSpeedSub = nh.subscribe<std_msgs::Float64>("CVT/max_speed", 1, maxSpeedCallback);
+  private_nh.param<std::string>("local_pose_topic", pose_topic, "CVT/local_pose");
+  private_nh.param<std::string>("waypoint_topic", wp_topic, "CVT/waypoint");
+  private_nh.param<std::string>("waypoint_list_topic", wp_list_topic, "CVT/waypoint_list");
+  private_nh.param<std::string>("max_speed_topic", speed_topic, "CVT/max_speed");
+
+  auto localPoseSub = nh.subscribe<geometry_msgs::Pose>(pose_topic, 1, localPoseCallback);
+  auto waypointSub = nh.subscribe<geometry_msgs::Pose>(wp_topic, 1, waypointCallback);
+  auto waypointListSub = nh.subscribe<geometry_msgs::PoseArray>(wp_list_topic, 1, waypointListCallback);
+  auto maxSpeedSub = nh.subscribe<std_msgs::Float64>(speed_topic, 1, maxSpeedCallback);
 
   std::vector<transport::Address> cmp_list;
   uint32_t periodicSubscriptionId = 0;
@@ -508,10 +520,10 @@ int main(int argc, char **argv) {
 void printMenu() {
   std::system("clear");
   std::cout << "Conformance Verification Tool\n\n";
-  std::cout << "Listening on topic [/CVT/local_pose] for local pose" << std::endl;
-  std::cout << "Listening on topic [/CVT/waypoint] for waypoint" << std::endl;
-  std::cout << "Listening on topic [/CVT/waypoint_list] for waypoint list" << std::endl;
-  std::cout << "Listening on topic [/CVT/max_speed] for max speed\n\n";
+  std::cout << "Listening on topic [" << pose_topic << "] for local pose" << std::endl;
+  std::cout << "Listening on topic [" << wp_topic << "] for waypoint" << std::endl;
+  std::cout << "Listening on topic [" << wp_list_topic << "] for waypoint list" << std::endl;
+  std::cout << "Listening on topic [" << speed_topic << "] for max speed\n\n";
   std::cout << "Menu:\n\n";
   std::cout << "  t - Print System Tree\n";
   std::cout << "  f - Find Subsystem\n\n";

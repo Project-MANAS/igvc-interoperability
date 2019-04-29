@@ -110,6 +110,11 @@ class NavigationAndReportingComponent :
   nav_msgs::Odometry odom_msg_;
 
   std::string odom_topic_;
+  std::string cmd_vel_topic_;
+  std::string set_pose_srv_;
+  std::string set_max_vel_srv_;
+  std::string set_waypoint_srv_;
+  std::string get_waypoint_srv_;
 
   double max_vel_;
   double max_linear_x_;

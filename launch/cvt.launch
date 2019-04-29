@@ -1,0 +1,8 @@
+<launch>
+    <node type="cvt_node" name="cvt_node" pkg="interoperability" args="--ojconf=$(find interoperability)/ojconf/cvt_node.ojconf" output="screen">
+        <param name="local_pose_topic" value="CVT/local_pose"/>
+        <param name="waypoint_topic" value="CVT/waypoint"/>
+        <param name="waypoint_list_topic" value="CVT/waypoint_list"/>
+        <param name="max_speed_topic" value="CVT/max_speed"/>
+    </node>
+</launch>
