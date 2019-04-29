@@ -5,7 +5,6 @@
         <param name="set_max_velocity_service" value="/move_base/DWAPlannerROS/set_max_vel"/>
         <param name="set_waypoint_service" value="/set_pose_waypoint"/>
         <param name="get_waypoint_service" value="/get_target_waypoint"/>
-        <param name="keep_points_upto" value="10.0"/>
         <param name="max_linear_x" value="0.5"/>
         <param name="max_angular_z" value="0.25"/>
         <param name="cmd_vel_topic" value="/cmd_vel"/>
