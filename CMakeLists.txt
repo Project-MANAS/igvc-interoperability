@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
         nav_msgs
         std_msgs
         robot_localization
-        dwa_local_planner
+        fake_planner
         waypoint_server
 )
 
@@ -25,7 +25,7 @@ catkin_package(CATKIN_DEPENDS
         nav_msgs
         std_msgs
         robot_localization
-        dwa_local_planner
+        fake_planner
         waypoint_server
 )
 

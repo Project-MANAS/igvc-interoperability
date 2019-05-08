@@ -20,7 +20,7 @@
     <depend>nav_msgs</depend>
     <depend>std_msgs</depend>
     <depend>robot_localization</depend>
-    <depend>dwa_local_planner</depend>
+    <depend>fake_planner</depend>
     <depend>waypoint_server</depend>
 
     <export>

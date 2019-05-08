@@ -5,7 +5,7 @@
 #include "interoperability/NavigationAndReportingComponent.h"
 
 #include <robot_localization/SetPose.h>
-#include <dwa_local_planner/SetMaxVel.h>
+#include <fake_planner/SetMaxVel.h>
 #include <waypoint_server/SetPoseWaypoint.h>
 #include <waypoint_server/QueryTargetWaypoint.h>
 
@@ -38,21 +38,16 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
   private_node_.param<std::string>("odom_topic", odom_topic_, "odom");
   private_node_.param<std::string>("cmd_vel_topic", cmd_vel_topic_, "cmd_vel");
   private_node_.param<std::string>("set_pose_service", set_pose_srv_, "set_pose");
-  private_node_.param<std::string>("set_max_velocity_service", set_max_vel_srv_, "move_base/DWAPlannerROS/set_max_vel");
+  private_node_.param<std::string>("set_max_velocity_service", set_max_vel_srv_, "fake_planner/set_max_velocity");
   private_node_.param<std::string>("set_waypoint_service", set_waypoint_srv_, "set_pose_waypoint");
   private_node_.param<std::string>("get_waypoint_service", get_waypoint_srv_, "get_target_waypoint");
   private_node_.param("max_linear_x", max_linear_x_, 0.5);
   private_node_.param("max_angular_z", max_angular_z_, 0.25);
 
-  ros::service::waitForService(set_max_vel_srv_, -1);
-  ros::service::waitForService(set_waypoint_srv_, -1);
-  ros::service::waitForService(get_waypoint_srv_, -1);
-  ros::service::waitForService(set_pose_srv_, -1);
-
-  set_pose_client_ = node_.serviceClient<robot_localization::SetPose>(set_pose_srv_);
-  set_max_vel_client_ = node_.serviceClient<dwa_local_planner::SetMaxVel>(set_max_vel_srv_);
-  set_local_waypoint_client_ = node_.serviceClient<waypoint_server::SetPoseWaypoint>(set_waypoint_srv_);
-  get_local_waypoint_client_ = node_.serviceClient<waypoint_server::QueryTargetWaypoint>(get_waypoint_srv_);
+//  set_pose_client_ = node_.serviceClient<robot_localization::SetPose>(set_pose_srv_);
+//  set_max_vel_client_ = node_.serviceClient<fake_planner::SetMaxVel>(set_max_vel_srv_);
+//  set_local_waypoint_client_ = node_.serviceClient<waypoint_server::SetPoseWaypoint>(set_waypoint_srv_);
+//  get_local_waypoint_client_ = node_.serviceClient<waypoint_server::QueryTargetWaypoint>(get_waypoint_srv_);
 
   cmd_vel_pub_ = node_.advertise<geometry_msgs::Twist>(cmd_vel_topic_, 1);
 
@@ -531,12 +526,12 @@ void NavigationAndReportingComponent::velocityCallback(const nav_msgs::Odometry:
 }
 
 bool NavigationAndReportingComponent::setMaxVelocity(double vel) {
-  dwa_local_planner::SetMaxVel srv;
+  fake_planner::SetMaxVel srv;
   srv.request.max_vel.data = vel;
   if (set_max_vel_client_.call(srv))
     ROS_INFO("Max travel speed was set to %lf m/s", vel);
   else {
-    ROS_ERROR("Failed to call service 'move_base/DWAPlannerROS/set_max_vel' in dwa_local_planner package");
+    ROS_ERROR("Failed to call service '%s' in fake_planner package", set_max_vel_srv_.c_str());
     return false;
   }
   return true;
@@ -544,7 +539,7 @@ bool NavigationAndReportingComponent::setMaxVelocity(double vel) {
 
 bool NavigationAndReportingComponent::setWaypoint(double x, double y, int mode) {
   waypoint_server::SetPoseWaypoint srv;
-  srv.request.waypoint.header.frame_id = odom_topic_;
+  srv.request.waypoint.header.frame_id = "odom";
   srv.request.waypoint.header.stamp = ros::Time::now();
   srv.request.waypoint.pose.position.x = x;
   srv.request.waypoint.pose.position.y = y;
