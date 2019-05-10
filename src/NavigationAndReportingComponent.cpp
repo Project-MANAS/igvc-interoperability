@@ -36,6 +36,7 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
   publish(openjaus::core::ReportControl::ID, -1.0, openjaus::model::ALL_EVENTS);
 
   private_node_.param<std::string>("odom_topic", odom_topic_, "odom");
+  private_node_.param<std::string>("goal_reached_topic", goal_topic_, "goal_reached");
   private_node_.param<std::string>("cmd_vel_topic", cmd_vel_topic_, "cmd_vel");
   private_node_.param<std::string>("set_pose_service", set_pose_srv_, "set_pose");
   private_node_.param<std::string>("set_max_velocity_service", set_max_vel_srv_, "fake_planner/set_max_velocity");
@@ -44,10 +45,10 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
   private_node_.param("max_linear_x", max_linear_x_, 0.5);
   private_node_.param("max_angular_z", max_angular_z_, 0.25);
 
-//  set_pose_client_ = node_.serviceClient<robot_localization::SetPose>(set_pose_srv_);
-//  set_max_vel_client_ = node_.serviceClient<fake_planner::SetMaxVel>(set_max_vel_srv_);
-//  set_local_waypoint_client_ = node_.serviceClient<waypoint_server::SetPoseWaypoint>(set_waypoint_srv_);
-//  get_local_waypoint_client_ = node_.serviceClient<waypoint_server::QueryTargetWaypoint>(get_waypoint_srv_);
+  set_pose_client_ = node_.serviceClient<robot_localization::SetPose>(set_pose_srv_);
+  set_max_vel_client_ = node_.serviceClient<fake_planner::SetMaxVel>(set_max_vel_srv_);
+  set_local_waypoint_client_ = node_.serviceClient<waypoint_server::SetPoseWaypoint>(set_waypoint_srv_);
+  get_local_waypoint_client_ = node_.serviceClient<waypoint_server::QueryTargetWaypoint>(get_waypoint_srv_);
 
   cmd_vel_pub_ = node_.advertise<geometry_msgs::Twist>(cmd_vel_topic_, 1);
 
@@ -55,7 +56,8 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
   is_ready_ = false;
   max_vel_ = 0.0;
 
-  odom_sub_ = node_.subscribe(odom_topic_, 1, &NavigationAndReportingComponent::velocityCallback, this);
+  odom_sub_ = node_.subscribe(odom_topic_, 1, &NavigationAndReportingComponent::odomCallback, this);
+  goal_sub_ = node_.subscribe(goal_topic_, 1, &NavigationAndReportingComponent::goalReachedCallback, this);
 
   this->run();
   this->initialized();
@@ -521,8 +523,13 @@ void NavigationAndReportingComponent::onEnterControlledStandby() {
   setMaxVelocity(0.0);
 }
 
-void NavigationAndReportingComponent::velocityCallback(const nav_msgs::Odometry::ConstPtr &msg) {
+void NavigationAndReportingComponent::odomCallback(const nav_msgs::Odometry::ConstPtr &msg) {
   odom_msg_ = *msg;
+}
+
+void NavigationAndReportingComponent::goalReachedCallback(const std_msgs::Bool::ConstPtr &msg) {
+  if (msg->data)
+    waypoint_list_.updateActiveElement();
 }
 
 bool NavigationAndReportingComponent::setMaxVelocity(double vel) {

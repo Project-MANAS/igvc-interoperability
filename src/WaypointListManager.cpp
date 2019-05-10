@@ -138,6 +138,10 @@ openjaus::mobility_v1_0::ElementRecord WaypointListManager::getElement(uint16_t 
   return result;
 }
 
+void WaypointListManager::updateActiveElement() {
+  setActiveElement(getElement(active_element_).getNextUID());
+}
+
 std::deque<openjaus::mobility_v1_0::ElementRecord>& WaypointListManager::getList() {
   return element_list_;
 }
