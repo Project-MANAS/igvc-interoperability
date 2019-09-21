@@ -1,112 +1,16 @@
 <?xml version="1.0"?>
 <launch>
 
-    <arg name="gui" default="false"/>
-    <arg name="move_base" default="true"/>
-    <arg name="paused" default="false"/>
-    <arg name="model" default="$(find simulation)/urdf/robot.urdf"/>
-    <arg name="origin" default="-x 0 -y -23.5 -z 0.3 -R 0 -P 0 -Y 0"/>
-    <arg name="urdf_file" default="$(find robot_description)/urdf/robot.urdf.xacro"/>
-    <arg name="diff_drive_plugin" default="true"/>
-    <arg name="lidar_plugin" default="true"/>
-    <arg name="upper_zed_plugin" default="false"/>
-    <arg name="lower_zed_plugin" default="false"/>
-    <arg name="gps_plugin" default="false"/>
-
-    <param name="robot_description" command="$(find xacro)/xacro '$(arg urdf_file)'
-  diff_drive_plugin_enabled:=$(arg diff_drive_plugin)
-  lidar_plugin_enabled:=$(arg lidar_plugin)
-  upper_zed_plugin_enabled:=$(arg upper_zed_plugin)
-  lower_zed_plugin_enabled:=false
-  gps_plugin_enabled:=false"/>
-
-    <node name="spawn_xacro" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
-          args="-urdf $(arg origin) -model solo -param robot_description"/>
-
-    <!-- RTAB-Map ROS -->
-    <arg name="zed_upper_namespace" default="zed/upper_zed_cam"/>
-
-    <node name="zed_cam" pkg="rtabmap_slam" type="false_zed_cam">
-        <param name="image_raw_topic" value="/$(arg zed_upper_namespace)/rgb/image_raw"/>
-        <param name="rgb_camera_info_topic" value="/$(arg zed_upper_namespace)/rgb/camera_info"/>
-        <param name="depth_camera_info_topic" value="/$(arg zed_upper_namespace)/depth/camera_info"/>
-    </node>
-
-    <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping">
-        <rosparam file="$(find launch_base)/cfg/gmapping_params.yaml" command="load"/>
-        <remap from="scan" to="/pointcloud_scan"/>
-    </node>
-
-    <!-- Rviz -->
-    <node pkg="rviz" type="rviz" name="rviz"/>
-
-    <!-- Joint Publisher -->
-    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"/>
-
-    <!-- Transform Publisher -->
-    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"/>
-
-    <!-- Twist MUX -->
-    <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
-        <remap from="cmd_vel_out" to="/cmd_vel"/>
-        <rosparam file="$(find launch_base)/cfg/twist_mux_topics.yaml" command="load"/>
-        <rosparam file="$(find launch_base)/cfg/twist_mux_locks.yaml" command="load"/>
-    </node>
-
-    <!-- Simulation -->
-    <include file="$(find simulation)/launch/igvc_sim.launch">
-        <arg name="gui" value="$(arg gui)"/>
-        <arg name="paused" value="$(arg paused)"/>
-    </include>
-
-    <!-- <node pkg="lane_detection" type="lane_detection.py" name="lane_detection" output="screen">
-      <param name="image_topic" value="/zed/upper_zed_cam/rgb/image_raw"/>
-    </node>
-
-    <node pkg="image_to_pointcloud" type="image_to_pointcloud" name="image_to_pointcloud" output="screen">
-      <param name="img_sub_topic" value="/lane_detection/mask"/>
-      <param name="cloud_sub	_topic" value="/zed/upper_zed_cam/depth/points"/>
-    </node> -->
-
     <node type="waypoint_server_node.py" name="waypoint_server" pkg="waypoint_server">
         <param name="threshold_distance" value="1"/>
-        <param name="gps_topic" value="/gps"/>
+        <param name="gps_topic" value="/vectornav/GPS"/>
         <param name="odom_topic" value="/odom"/>
-        <param name="imu_topic" value="/imu"/>
+        <param name="imu_topic" value="/vectornav/IMU"/>
         <param name="publish_displacement_from_wp" value="True"/>
         <param name="generate_waypoints_from_file" value="False"/>
     </node>
 
-    <node pkg="intermediate_waypoints" type="intermediate_waypoints" name="intermediate_waypoints">
-        <param name="waypoint_sub_topic" value="/integrate_waypoint"/>
-        <param name="cloud_sub_topic" value="/zed/upper_zed_cam/depth/points"/>
-    </node>
 
-    <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_odom" args="0 0 0 0 0 0 map odom"/>
-
-    <!--   <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan">
-         <remap from="cloud_in" to="/masked_cloud"/>
-         <remap from="scan" to="pointcloud_scan"/>
-         <param name="target_frame" value="odom"/>
-      </node> -->
-
-    <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan">
-        <remap from="cloud_in" to="scan"/>
-        <remap from="scan" to="/pointcloud_scan"/>
-        <param name="target_frame" value="base_link"/>
-    </node>
-
-    <node type="fake_planner" name="fake_planner" pkg="fake_planner" output="screen">
-        <param name="goal_topic" value="move_base_simple/goal"/>
-        <param name="cmd_vel_topic" value="/cmd_vel"/>
-        <param name="max_velocity_service" value="set_max_velocity"/>
-        <param name="linear_tolerance" value="0.1"/>
-        <param name="angular_tolerance" value="0.1"/>
-        <param name="time_to_x" value="0.5"/>
-        <param name="time_to_angle" value="0.5"/>
-        <param name="max_linear_speed" value="1.0"/>
-        <param name="max_angular_speed" value="0.5"/>
-    </node>
 
     <node type="iop_node" name="iop_node" pkg="interoperability"
           args="--ojconf=$(find interoperability)/ojconf/iop_node.ojconf" output="screen">
@@ -115,8 +19,9 @@
         <param name="set_max_velocity_service" value="/fake_planner/set_max_velocity"/>
         <param name="set_waypoint_service" value="/set_pose_waypoint"/>
         <param name="get_waypoint_service" value="/get_target_waypoint"/>
-        <param name="max_linear_x" value="0.5"/>
-        <param name="max_angular_z" value="0.25"/>
-        <param name="cmd_vel_topic" value="/cmd_vel"/>
+        <param name="max_linear_x" value="0.6"/>
+        <param name="max_angular_z" value="0.8"/>
+        <param name="cmd_vel_topic" value="iop/cmd_vel"/>
     </node>
+
 </launch>

@@ -44,12 +44,14 @@ NavigationAndReportingComponent::NavigationAndReportingComponent(const std::stri
   private_node_.param("max_linear_x", max_linear_x_, 0.5);
   private_node_.param("max_angular_z", max_angular_z_, 0.25);
 
-//  set_pose_client_ = node_.serviceClient<robot_localization::SetPose>(set_pose_srv_);
-//  set_max_vel_client_ = node_.serviceClient<fake_planner::SetMaxVel>(set_max_vel_srv_);
-//  set_local_waypoint_client_ = node_.serviceClient<waypoint_server::SetPoseWaypoint>(set_waypoint_srv_);
-//  get_local_waypoint_client_ = node_.serviceClient<waypoint_server::QueryTargetWaypoint>(get_waypoint_srv_);
+ set_pose_client_ = node_.serviceClient<robot_localization::SetPose>(set_pose_srv_);
+ set_max_vel_client_ = node_.serviceClient<fake_planner::SetMaxVel>(set_max_vel_srv_);
+ set_local_waypoint_client_ = node_.serviceClient<waypoint_server::SetPoseWaypoint>(set_waypoint_srv_);
+ get_local_waypoint_client_ = node_.serviceClient<waypoint_server::QueryTargetWaypoint>(get_waypoint_srv_);
 
   cmd_vel_pub_ = node_.advertise<geometry_msgs::Twist>(cmd_vel_topic_, 1);
+    sp_ = node_.advertise<geometry_msgs::PoseWithCovarianceStamped>("set_pose", 1);
+
 
   is_emergency_ = false;
   is_ready_ = false;
@@ -142,28 +144,15 @@ openjaus::mobility_v1_0::ReportLocalPose NavigationAndReportingComponent::getRep
 
 bool NavigationAndReportingComponent::updateLocalPose(openjaus::mobility_v1_0::SetLocalPose *setLocalPose) {
 
-  robot_localization::SetPose srv;
+  geometry_msgs::PoseWithCovarianceStamped msg;
+  msg.pose.pose.position.x = setLocalPose->getX_m();
+  msg.pose.pose.position.y = -setLocalPose->getY_m();
 
-  srv.request.pose.header.stamp = ros::Time::now();
-  srv.request.pose.header.frame_id = odom_topic_;
-  srv.request.pose.pose.pose.position.x = setLocalPose->getX_m();
-  srv.request.pose.pose.pose.position.y = -setLocalPose->getY_m();
-  srv.request.pose.pose.pose.position.z = 0.0;
-  srv.request.pose.pose.pose.orientation.x = 0.0;
-  srv.request.pose.pose.pose.orientation.y = 0.0;
-  srv.request.pose.pose.pose.orientation.z = 0.0;
-  srv.request.pose.pose.pose.orientation.w = 1.0;
+  msg.header.frame_id = "odom";
+  msg.header.stamp = ros::Time::now();
 
-  if (set_pose_client_.call(srv))
-    ROS_INFO("Local Pose was reset to (X: %lf, Y: %lf)",
-             srv.request.pose.pose.pose.position.x,
-             srv.request.pose.pose.pose.position.y);
-  else {
-    ROS_ERROR("Failed to call service 'set_pose' in robot_localization package");
-    return false;
-  }
+  sp_.publish(msg);
 
-  return true;
 }
 
 
@@ -215,7 +204,7 @@ openjaus::mobility_v1_0::ReportLocalWaypoint NavigationAndReportingComponent::ge
       pose.pose.orientation.z = srv.response.waypoint.pose.orientation.z;
       pose.pose.orientation.w = srv.response.waypoint.pose.orientation.w;
 
-      tf_buffer_.transform(pose, pose, odom_topic_);
+      tf_buffer_.transform(pose, pose, "odom");
 
       localWaypoint.setX_m(pose.pose.position.x);
       localWaypoint.setY_m(-pose.pose.position.y);

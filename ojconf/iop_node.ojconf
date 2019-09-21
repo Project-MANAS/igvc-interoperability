@@ -5,7 +5,7 @@
 		{
 			"Settings" : 
 			{
-				"ServerAuthority" : 0,
+				"ServerAuthority" : 2,
 				"Timeout_sec" : 0
 			}
 		},
@@ -44,7 +44,7 @@
 		{
 			"Method" : "Static",
 			"NodeID" : 1,
-			"SubsystemID" : 155
+			"SubsystemID" : 107
 		},
 		"Discovery" : 
 		{

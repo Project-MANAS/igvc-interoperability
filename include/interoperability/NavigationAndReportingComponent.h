@@ -95,7 +95,7 @@ class NavigationAndReportingComponent :
   ros::NodeHandle private_node_;
   ros::NodeHandle node_;
 
-  ros::Publisher cmd_vel_pub_;
+  ros::Publisher cmd_vel_pub_, sp_;
 
   ros::ServiceClient set_pose_client_;
   ros::ServiceClient set_max_vel_client_;
