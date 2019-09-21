@@ -24,6 +24,7 @@ class WaypointListManager {
   openjaus::mobility_v1_0::RejectElementResponseCodeEnumeration::RejectElementResponseCodeEnum getError();
   uint16_t getActiveElement();
   void setActiveElement(uint16_t uid);
+  void updateActiveElement();
 
   void setError(openjaus::mobility_v1_0::RejectElementResponseCodeEnumeration::RejectElementResponseCodeEnum code);
   void resetError();

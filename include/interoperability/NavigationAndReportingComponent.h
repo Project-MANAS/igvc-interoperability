@@ -27,6 +27,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
+#include <std_msgs/Bool.h>
 
 #include "interoperability/WaypointListManager.h"
 
@@ -88,8 +89,8 @@ class NavigationAndReportingComponent :
   void onEnterNotControlledStandby() override;
   void onEnterControlledStandby() override;
 
-
-  void velocityCallback(const nav_msgs::Odometry::ConstPtr& msg);
+  void odomCallback(const nav_msgs::Odometry::ConstPtr& msg);
+  void goalReachedCallback(const std_msgs::Bool::ConstPtr& msg);
 
  private:
   ros::NodeHandle private_node_;
@@ -106,10 +107,12 @@ class NavigationAndReportingComponent :
   tf2_ros::TransformListener tf_listener_;
 
   ros::Subscriber odom_sub_;
+  ros::Subscriber goal_sub_;
 
   nav_msgs::Odometry odom_msg_;
 
   std::string odom_topic_;
+  std::string goal_topic_;
   std::string cmd_vel_topic_;
   std::string set_pose_srv_;
   std::string set_max_vel_srv_;

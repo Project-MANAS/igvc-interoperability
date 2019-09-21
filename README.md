@@ -15,7 +15,7 @@ This will ensure proper communication between the CVT and Solo.
 This package uses services provided by other packages for proper reporting and handling of CVT requests. These dependencies must be available to build this package.
 The dependencies include:
 * `Waypoint Server`: To set waypoints for waypoint navigation task
-* `DWA Local Planner`: To dynamically change maximum velocity for Solo based on movement and state requirements
+* `Fake Planner`: To dynamically change maximum velocity for Solo based on movement and state requirements
 * `Robot Localization`: To set current local pose
 
 ### Usage
@@ -24,9 +24,10 @@ The dependencies include:
 
 ##### IOP Stack
 Set the following parameters in *iop.launch*:  
-  - `odom_topic (default: "/odom")`: Odometry information that gives the current velocity and pose of the robot 
+  - `odom_topic (default: "/odom")`: Odometry information that gives the current velocity and pose of the robot (type: *nav_msgs/Odometry*)
+  - `goal_reached_topic (default: "/goal_reached")`: Topic where the planner publishes when the current goal is reached (type: *std_msgs/Bool*) 
   - `set_pose_service (default: "/set_pose")`: Service provided by `robot_localization` package to set current local pose
-  - `set_max_velocity_service (default: "/move_base/DWAPlannerROS/set_max_vel")`: Service provided by `dwa_local_planner` package to set maximum velocity
+  - `set_max_velocity_service (default: "/fake_planner/set_max_vel")`: Service provided by `fake_planner` package to set maximum velocity
   - `set_waypoint_service (default: "/set_pose_waypoint")`: Service provided by `waypoint_server` package to set waypoints
   - `get_waypoint_service (default: "/get_target_waypoint")`: Service provided by `waypoint_server` package to get current waypoint
   - `max_linear_x (default: 0.5)`: maximum linear velocity for direct cmd_vel commands

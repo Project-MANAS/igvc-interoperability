@@ -1,6 +1,7 @@
 <launch>
     <node type="iop_node" name="iop_node" pkg="interoperability" args="--ojconf=$(find interoperability)/ojconf/iop_node.ojconf" output="screen">
         <param name="odom_topic" value="/odom"/>
+        <param name="goal_reached_topic" value="/goal_reached"/>
         <param name="set_pose_service" value="/set_pose"/>
         <param name="set_max_velocity_service" value="/fake_planner/set_max_velocity"/>
         <param name="set_waypoint_service" value="/set_pose_waypoint"/>

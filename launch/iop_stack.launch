@@ -10,18 +10,30 @@
         <param name="generate_waypoints_from_file" value="False"/>
     </node>
 
-
+    <node type="fake_planner" name="fake_planner" pkg="fake_planner" output="screen">
+        <param name="goal_topic" value="move_base_simple/goal"/>
+        <param name="cmd_vel_topic" value="/fake_planner/cmd_vel"/>
+        <param name="goal_reached_topic" value="/goal_reached"/>
+        <param name="max_velocity_service" value="set_max_velocity"/>
+        <param name="linear_tolerance" value="0.1"/>
+        <param name="angular_tolerance" value="0.35"/>
+        <param name="time_to_x" value="0.5"/>
+        <param name="time_to_angle" value="0.5"/>
+        <param name="max_linear_speed" value="0.6"/>
+        <param name="max_angular_speed" value="0.6"/>
+    </node>
 
     <node type="iop_node" name="iop_node" pkg="interoperability"
           args="--ojconf=$(find interoperability)/ojconf/iop_node.ojconf" output="screen">
         <param name="odom_topic" value="/odom"/>
+        <param name="goal_reached_topic" value="/goal_reached"/>
         <param name="set_pose_service" value="/set_pose"/>
         <param name="set_max_velocity_service" value="/fake_planner/set_max_velocity"/>
         <param name="set_waypoint_service" value="/set_pose_waypoint"/>
         <param name="get_waypoint_service" value="/get_target_waypoint"/>
         <param name="max_linear_x" value="0.6"/>
         <param name="max_angular_z" value="0.8"/>
-        <param name="cmd_vel_topic" value="iop/cmd_vel"/>
+        <param name="cmd_vel_topic" value="/iop/cmd_vel"/>
     </node>
 
 </launch>
