@@ -6,7 +6,18 @@ The package has two nodes:
 * `iop_node` : Main navigation and reporting component for the IOP challenge.
 * `cvt_node` : Conformance Verification Tool to test the IOP stack.
 
+### OpenJAUS
+
+---
+
+The package uses the OpenJAUS SDK for all JAUS related dependencies.
+Once you have acces to the OpenJAUS SDK, make the following changes in CMakeLists.txt:
+* Set **JAUS_INCLUDE_PATH** to "path-to-openjaus-sdk/include"
+* Set **JAUS_LIB_PATH** to "path-to-openjaus-sdk/lib"
+
 ### Setup
+
+---
 
 When Solo's ROS stack is running on one system and the CVT is running on another system, they need to be on the same network for communication.
 The last octet of the IP address of Solo's system on the network should be set as the Subsystem ID in *iop_node.ojconf*.
