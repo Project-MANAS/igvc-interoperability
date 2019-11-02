@@ -42,6 +42,9 @@ bool processReportTimeout(core_v1_1::ReportTimeout &report);
 void processControlResponse(const model::ControlResponse &response);
 void processEventRequestResponse(const model::EventRequestResponseArgs &response);
 
+bool processReportIdentification(core_v1_1::ReportIdentification &report);
+bool processReportConfiguration(core_v1_1::ReportConfiguration &report);
+
 void localPoseCallback(const geometry_msgs::Pose::ConstPtr &msg);
 void waypointCallback(const geometry_msgs::Pose::ConstPtr &msg);
 void waypointListCallback(const geometry_msgs::PoseArray::ConstPtr &msg);
@@ -84,6 +87,8 @@ int main(int argc, char **argv) {
 
     core_v1_1::Base component("CVT");
 
+    component.addMessageCallback(processReportIdentification);
+    component.addMessageCallback(processReportConfiguration);
     component.addMessageCallback(processReportStatus);
     component.addMessageCallback(processReportHeartbeatPulse);
     component.addMessageCallback(processReportControl);
@@ -134,6 +139,56 @@ int main(int argc, char **argv) {
           for (size_t i = 0; i < cmp_list.size(); i++) {
             std::cout << "\t" << cmp_list.at(i).toString() << std::endl;
           }
+          break;
+        }
+
+        case 'z': // Query Identification
+        {
+          std::cout << "Sending Query Identification" << std::endl;
+
+          auto *query = new core_v1_1::QueryIdentification();
+
+          std::cout << "Enter Query Type: ";
+          auto t = system::Application::getChar();
+
+          core_v1_1::SystemLevelEnumeration::SystemLevelEnum qt;
+          if (t == '1')
+            qt = core_v1_1::SystemLevelEnumeration::SystemLevelEnum::SYSTEM;
+          else if (t == '2')
+            qt = core_v1_1::SystemLevelEnumeration::SystemLevelEnum::SUBSYSTEM;
+          else if (t == '3')
+            qt = core_v1_1::SystemLevelEnumeration::SystemLevelEnum::NODE;
+          else
+            qt = core_v1_1::SystemLevelEnumeration::SystemLevelEnum::COMPONENT;
+
+          query->setQueryType(qt);
+          sendMessage(component, cmp_list, query);
+
+          break;
+        }
+
+        case 'x': // Query Configuration
+        {
+          std::cout << "Sending Query Configuration" << std::endl;
+
+          auto *query = new core_v1_1::QueryConfiguration();
+
+          std::cout << "Enter Query Type: ";
+          auto t = system::Application::getChar();
+
+          core_v1_1::SystemLevelEnumeration::SystemLevelEnum qt;
+          if (t == '1')
+            qt = core_v1_1::SystemLevelEnumeration::SystemLevelEnum::SYSTEM;
+          else if (t == '2')
+            qt = core_v1_1::SystemLevelEnumeration::SystemLevelEnum::SUBSYSTEM;
+          else if (t == '3')
+            qt = core_v1_1::SystemLevelEnumeration::SystemLevelEnum::NODE;
+          else
+            qt = core_v1_1::SystemLevelEnumeration::SystemLevelEnum::COMPONENT;
+
+          query->setQueryType(qt);
+          sendMessage(component, cmp_list, query);
+
           break;
         }
 
@@ -206,7 +261,8 @@ int main(int argc, char **argv) {
 
         case '5': // Set Local Pose
         {
-          std::cout << "Sending Set Local Pose (X: " << localPose.position.x << ", Y: " << localPose.position.y << ")\n";
+          std::cout << "Sending Set Local Pose (X: " << localPose.position.x << ", Y: " << localPose.position.y
+                    << ")\n";
           auto *setPose = new mobility_v1_0::SetLocalPose();
 
           setPose->enableX();
@@ -221,7 +277,8 @@ int main(int argc, char **argv) {
 
         case '6': // Set Local Waypoint
         {
-          std::cout << "Sending Set Local Waypoint (X: " << waypoint.position.x << ", Y: " << waypoint.position.y << ")\n";
+          std::cout << "Sending Set Local Waypoint (X: " << waypoint.position.x << ", Y: " << waypoint.position.y
+                    << ")\n";
           auto *setWaypoint = new mobility_v1_0::SetLocalWaypoint();
 
           setWaypoint->setX_m(waypoint.position.x);
@@ -233,7 +290,7 @@ int main(int argc, char **argv) {
 
         case '7': // Set Travel Speed
         {
-          std::cout << "Sending Set Travel Speed (speed: " << maxSpeed <<" m/s)" << std::endl;
+          std::cout << "Sending Set Travel Speed (speed: " << maxSpeed << " m/s)" << std::endl;
           auto *setSpeed = new mobility_v1_0::SetTravelSpeed();
 
           setSpeed->setSpeed_mps(maxSpeed);
@@ -250,13 +307,13 @@ int main(int argc, char **argv) {
 
           setElement->setRequestID(1);
 
-          for (int i=0; i<waypointList.poses.size(); i++) {
+          for (int i = 0; i < waypointList.poses.size(); i++) {
             mobility_v1_0::ElementRecord e;
             mobility_v1_0::SetLocalWaypoint wp;
             wp.setX_m(waypointList.poses[i].position.x);
             wp.setY_m(waypointList.poses[i].position.y);
             e.setElementData(&wp);
-            e.setElementUID(uint16_t(i+1));
+            e.setElementUID(uint16_t(i + 1));
             if (i == 0)
               e.setPreviousUID(0);
             else
@@ -264,13 +321,14 @@ int main(int argc, char **argv) {
             if (i == waypointList.poses.size() - 1)
               e.setNextUID(0);
             else
-              e.setNextUID(uint16_t(i+2));
+              e.setNextUID(uint16_t(i + 2));
             setElement->getElementList().add(e);
           }
 
           std::cout << "List size: " << setElement->getElementList().getElementRec().size() << std::endl;
           for (auto &e : setElement->getElementList().getElementRec())
-            std::cout << "UID: " << e.getElementUID() << "\tPrevious UID: " << e.getPreviousUID() << "\tNext UID: " << e.getNextUID() << std::endl << std::endl;
+            std::cout << "UID: " << e.getElementUID() << "\tPrevious UID: " << e.getPreviousUID() << "\tNext UID: "
+                      << e.getNextUID() << std::endl << std::endl;
 
           sendMessage(component, cmp_list, setElement);
           break;
@@ -278,7 +336,7 @@ int main(int argc, char **argv) {
 
         case '9': // Execute List
         {
-          std::cout << "Sending Execute List:"<< std::endl << "Enter UID (0-9): " << std::endl;
+          std::cout << "Sending Execute List:" << std::endl << "Enter UID (0-9): " << std::endl;
           auto *executeList = new mobility_v1_0::ExecuteList();
 
           uint16_t uid = system::Application::getChar() - '0';
@@ -495,8 +553,7 @@ int main(int argc, char **argv) {
           break;
         }
 
-        default:
-        {
+        default: {
           ros::spinOnce();
           std::cout << "Loaded data from ROS topics!" << std::endl;
           break;
@@ -527,6 +584,9 @@ void printMenu() {
   std::cout << "Menu:\n\n";
   std::cout << "  t - Print System Tree\n";
   std::cout << "  f - Find Subsystem\n\n";
+  std::cout << "  Platform Service\n";
+  std::cout << "  z - Query Identification\n";
+  std::cout << "  x - Query Configuration\n";
   std::cout << "  Access Control Service\n";
   std::cout << "  i - Request Control\n";
   std::cout << "  o - Release Control\n";
@@ -667,7 +727,6 @@ bool processReportElementCount(mobility_v1_0::ReportElementCount &report) {
   return true;
 }
 
-
 bool processReportStatus(core_v1_1::ReportStatus &report) {
   std::cout << "Received Report Status from: " << report.getSource() << std::endl;
   std::cout << "-----------------------------" << std::endl;
@@ -694,6 +753,32 @@ bool processReportControl(core_v1_1::ReportControl &report) {
 bool processReportTimeout(core_v1_1::ReportTimeout &report) {
   std::cout << "Received Report Timeout\n";
   std::cout << "Timeout (sec): " << (int) report.getTimeout_sec() << std::endl;
+  return true;
+}
+
+bool processReportIdentification(core_v1_1::ReportIdentification &report) {
+  std::cout << "Received Report Identification\n";
+  std::cout << "-----------------------------" << std::endl;
+  std::cout << "Query Type: " << report.getQueryType() << std::endl;
+  std::cout << "Type: " << report.getType() << std::endl;
+  std::cout << "Identification: " << report.getIdentification() << std::endl;
+  std::cout << "-----------------------------" << std::endl;
+  return true;
+}
+
+bool processReportConfiguration(core_v1_1::ReportConfiguration &report) {
+
+  auto nl = report.getNodeList();
+
+  std::cout << "Received Report Configuration\n";
+  std::cout << "-----------------------------" << std::endl;
+  std::cout << "Nodes: " << nl.size() << std::endl;
+  for (size_t i=0;i<nl.size();i++) {
+    auto n = nl.get(i);
+    auto cl = n.getConfigurationComponentList();
+    std::cout << n.getName() << " (ID: " << n.getNodeID() << ")\n";
+  }
+  std::cout << "-----------------------------" << std::endl;
   return true;
 }
 
