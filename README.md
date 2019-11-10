@@ -25,9 +25,9 @@ This will ensure proper communication between the CVT and Solo.
 
 This package uses services provided by other packages for proper reporting and handling of CVT requests. These dependencies must be available to build this package.
 The dependencies include:
-* `Waypoint Server`: To set waypoints for waypoint navigation task
-* `Fake Planner`: To dynamically change maximum velocity for Solo based on movement and state requirements
-* `Robot Localization`: To set current local pose
+* [Waypoint Server](https://github.com/Project-MANAS/waypoint_server): To set waypoints for waypoint navigation task
+* [Fake Planner](https://github.com/Project-MANAS/fake_planner): To dynamically change maximum velocity for Solo based on movement and state requirements
+* [Robot Localization](https://github.com/cra-ros-pkg/robot_localization): To set current local pose
 
 ### Usage
 
